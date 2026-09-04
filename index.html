@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ICBT Staff Indoor Games 2026 — Event Manager</title>
+<style>
+  :root{
+    --bg:#0f1418;
+    --panel:#161d24;
+    --panel2:#1c242c;
+    --line:#2a343d;
+    --text:#e9edf1;
+    --muted:#8b98a3;
+    --gold:#ffd000;
+    --samurai:#c1272d;
+    --lions:#e8a33d;
+    --pirates:#1f9e89;
+    --titans:#00a2ff;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0; height:100%; overflow:hidden;}
+  body{
+    background:
+      radial-gradient(circle at 15% 0%, #1a2733 0%, transparent 45%),
+      radial-gradient(circle at 85% 100%, #1a1420 0%, transparent 45%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Segoe UI', Arial, sans-serif;
+    height:100vh;
+    display:flex; flex-direction:column;
+  }
+  header{
+    position:relative; z-index:1;
+    padding:16px 24px 12px;
+    text-align:center;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(232,163,61,.06), transparent);
+    flex-shrink:0;
+  }
+  main{position:relative; z-index:1; max-width:1400px; margin:0 auto; padding:14px 16px 20px; flex:1 1 auto; min-height:0; overflow:hidden; width:100%; display:flex; flex-direction:row; align-items:stretch; gap:14px;}
+  .sidebar{
+    width:220px; flex-shrink:0; background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:14px; overflow-y:auto; height:100%; display:flex; flex-direction:column;
+  }
+  .sidebar-title{font-size:13px; font-weight:800; letter-spacing:1px; color:var(--gold); text-transform:uppercase; margin-bottom:10px; text-align:center;}
+  .summary-row{
+    display:flex; align-items:center; gap:8px; padding:8px 8px; border-radius:8px;
+    background:var(--panel2); margin-bottom:8px; border:1px solid var(--line);
+  }
+  .summary-row:first-child{border-color:#e8c23d; box-shadow:0 0 0 1px rgba(232,194,61,.25) inset;}
+  .summary-rank{font-size:13px; font-weight:800; color:var(--muted); width:16px; text-align:center; flex-shrink:0;}
+  .summary-dot{width:10px; height:10px; border-radius:50%; flex-shrink:0;}
+  .summary-house{flex:1; font-size:13px; font-weight:700;}
+  .summary-pts{font-size:15px; font-weight:800; color:var(--gold);}
+  #contentArea{flex:1; min-width:0; height:100%; display:flex; align-items:flex-start; justify-content:center; overflow:hidden;}
+  #scaleWrap{width:100%; transform-origin:top center;}
+  h1{
+    margin:0; font-size:clamp(24px,3.6vw,36px); font-weight:800;
+    letter-spacing:.5px;
+  }
+  h1 span{color:var(--gold);}
+  .house-strip{
+    display:flex; justify-content:center; gap:0; margin-top:12px;
+    max-width:520px; margin-left:auto; margin-right:auto;
+    border-radius:6px; overflow:hidden; border:1px solid var(--line);
+  }
+  .house-strip div{flex:1; padding:6px 4px; font-size:12px; font-weight:700; text-align:center; letter-spacing:1px;}
+
+  .controls{
+    display:flex; flex-wrap:wrap; align-items:center; gap:12px;
+    background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:10px 14px; margin-bottom:14px;
+  }
+  .controls label{font-size:12px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); font-weight:700; margin-right:6px;}
+  select, input[type=text], input[type=number]{
+    background:var(--panel2); border:1px solid var(--line); color:var(--text);
+    border-radius:6px; padding:8px 10px; font-size:14px; font-family:inherit;
+  }
+  select:focus, input:focus{outline:2px solid var(--gold); outline-offset:1px;}
+  #gameSelect{min-width:280px; flex:1;}
+  .btn{
+    background:var(--panel2); border:1px solid var(--line); color:var(--text);
+    padding:8px 14px; border-radius:6px; font-size:13px; cursor:pointer; font-weight:600;
+  }
+  .btn:hover{border-color:var(--gold); color:var(--gold);}
+  .btn.primary{background:var(--gold); color:#221600; border-color:var(--gold);}
+  .btn.primary:hover{color:#221600; filter:brightness(1.08);}
+  .save-note{font-size:12px; color:var(--muted); margin-left:auto;}
+
+  #printTitle{display:none; text-align:center; margin-bottom:14px;}
+  #printTitle h2{margin:0 0 2px; font-size:20px;}
+  #printTitle div{font-size:12px; color:var(--muted);}
+
+  .bracket-wrap{position:relative;}
+
+  .bracket{position:relative; z-index:1; display:flex; gap:60px; align-items:stretch; overflow-x:auto; padding-bottom:10px;}
+  .col{display:flex; flex-direction:column; min-width:250px;}
+  .col-title{font-size:12px; text-transform:uppercase; letter-spacing:2px; color:var(--gold); font-weight:700; text-align:center; margin-bottom:8px;}
+  .col-body{position:relative;}
+  .col.round1 .col-body{display:flex; flex-direction:column; gap:12px;}
+  .col:not(.round1) .col-body{display:flex; flex-direction:column; justify-content:space-between; height:100%;}
+  .col.col-final .col-body{justify-content:center;}
+
+  .match{
+    background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden;
+    box-shadow:0 2px 10px rgba(0,0,0,.25); position:relative;
+  }
+  .match-head{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:6px 10px; background:var(--panel2); font-size:11px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:1px; font-weight:700;
+  }
+  .match-head .fmt{color:var(--gold);}
+  .slot{
+    display:flex; align-items:center; gap:8px; padding:7px 10px;
+    border-top:1px solid var(--line); transition:background .15s;
+  }
+  .slot[data-clickable="1"]{cursor:pointer;}
+  .slot:hover{background:var(--panel2);}
+  .slot.winner{background:rgba(232,163,61,.12);}
+  .slot.loser{opacity:.4;}
+  .win-radio{
+    width:16px; height:16px; border-radius:4px; border:2px solid var(--muted);
+    flex-shrink:0; cursor:pointer; transition:.15s; background:transparent;
+    position:relative;
+  }
+  .win-radio:hover{border-color:var(--gold);}
+  .win-radio.checked{background:var(--gold); border-color:var(--gold);}
+  .win-radio.checked::after{
+    content:"✓"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:900; color:#221600; line-height:1;
+  }
+  .house-dot{width:9px; height:9px; border-radius:50%; flex-shrink:0;}
+  .slot select{width:88px; font-size:12px; padding:5px 6px;}
+  .slot input[type=text]{flex:1; min-width:60px; font-size:13px; padding:5px 6px;}
+  .win-mark{width:16px; text-align:center; font-size:14px; color:var(--gold); opacity:0; flex-shrink:0;}
+  .slot.winner .win-mark{opacity:1;}
+
+  .podium{display:flex; gap:14px; margin-top:18px; flex-wrap:wrap;}
+  .podium-card{
+    flex:1; min-width:180px; background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:12px 16px; display:flex; align-items:center; gap:12px; border-top:3px solid var(--line);
+  }
+  .podium-card .rank-num{font-size:24px; font-weight:800; width:38px; text-align:center; flex-shrink:0;}
+  .podium-card .rank-info{flex:1; min-width:0;}
+  .podium-card .rank-info .rank-label{font-size:11px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); font-weight:700;}
+  .podium-card .rank-info .rank-team{font-size:15px; font-weight:700; margin-top:2px;}
+  .podium-card .rank-info .rank-house{font-size:12px; color:var(--muted); margin-top:1px;}
+  .marks-badge{
+    flex-shrink:0; text-align:center; min-width:46px; padding:5px 8px; border-radius:8px;
+    background:rgba(232,163,61,.14); border:1px solid rgba(232,163,61,.35);
+    visibility:hidden;
+  }
+  .marks-badge.show{visibility:visible;}
+  .marks-badge .mb-label{display:block; font-size:9px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); font-weight:700; margin-bottom:2px;}
+  .marks-badge .mb-val{font-size:15px; font-weight:800; color:var(--gold);}
+  .podium-card.gold{border-top-color:#e8c23d;}
+  .podium-card.gold .rank-num{color:#e8c23d;}
+  .podium-card.silver{border-top-color:#c9d3da;}
+  .podium-card.silver .rank-num{color:#c9d3da;}
+  .podium-card.bronze{border-top-color:#c98a4b;}
+  .podium-card.bronze .rank-num{color:#c98a4b;}
+
+  .dart-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px;}
+  .house-card{background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden;}
+  .house-card .hcard-head{padding:10px 12px; font-weight:800; letter-spacing:1px; font-size:13px; text-align:center; color:#0f1418;}
+  .dart-row{display:flex; align-items:center; gap:6px; padding:6px 10px; border-top:1px solid var(--line);}
+  .dart-row input[type=text]{flex:1; min-width:0; font-size:13px;}
+  .dart-row input[type=number]{width:44px; font-size:13px; padding:5px 4px; text-align:center;}
+  .dart-sum{width:34px; text-align:center; font-size:13px; color:var(--gold); font-weight:700;}
+  .dart-total{
+    display:flex; justify-content:space-between; padding:9px 12px; font-weight:800; font-size:14px;
+    background:var(--panel2); border-top:1px solid var(--line); letter-spacing:1px;
+  }
+
+  footer{text-align:center; color:var(--muted); font-size:12px; padding:12px; border-top:1px solid var(--line); flex-shrink:0;}
+  ::-webkit-scrollbar{height:8px; width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--line); border-radius:4px;}
+
+  #loginGate{
+    position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center;
+    background:
+      radial-gradient(circle at 15% 0%, #1a2733 0%, transparent 45%),
+      radial-gradient(circle at 85% 100%, #1a1420 0%, transparent 45%),
+      var(--bg);
+  }
+  .login-card{
+    width:100%; max-width:340px; background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:26px 24px; text-align:center; box-shadow:0 10px 40px rgba(0,0,0,.4);
+  }
+  .login-card .eyebrow{font-size:11px; letter-spacing:3px; color:var(--gold); font-weight:700; text-transform:uppercase; margin-bottom:6px;}
+  .login-card h2{margin:0 0 4px; font-size:20px;}
+  .login-card .sub{color:var(--muted); font-size:12px; margin-bottom:18px;}
+  .login-field{text-align:left; margin-bottom:12px;}
+  .login-field label{display:block; font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); font-weight:700; margin-bottom:5px;}
+  .login-field input{width:100%; padding:10px 12px; font-size:14px;}
+  .login-error{color:var(--samurai); font-size:12px; min-height:16px; margin-bottom:8px;}
+  .login-card .btn.primary{width:100%; padding:10px; font-size:14px; margin-top:4px;}
+  .login-note{font-size:10px; color:var(--muted); margin-top:14px; line-height:1.5;}
+  #loggedInAs{font-size:11px; color:var(--muted);}
+  #loggedInAs b{color:var(--text);}
+
+  @media print{
+    html,body{height:auto !important; overflow:visible !important;}
+    body{background:#fff !important; color:#111 !important; display:block !important;}
+    header, .controls, footer, .sidebar, #loginGate{display:none !important;}
+    #printTitle{display:block !important;}
+    #printTitle h2{color:#111;}
+    .col-title{display:none !important;}
+    main{max-width:100%; padding:0; overflow:visible !important; flex:none !important; display:block !important;}
+    #scaleWrap{transform:none !important;}
+    .bracket{overflow:visible;}
+    .match{border:1px solid #999; box-shadow:none; background:#fff;}
+    .match-head{background:#eee; color:#333;}
+    .slot{border-top:1px solid #ccc;}
+    .slot select, .slot input{background:#fff; color:#111; border:1px solid #ccc;}
+    .col-title{color:#a6690f;}
+    .win-mark{color:#a6690f;}
+    .win-radio{border-color:#999;}
+    .win-radio.checked{background:#a6690f; border-color:#a6690f;}
+    .podium-card{border:1px solid #999; background:#fff;}
+    .marks-badge{background:#fdf0d5; border-color:#c98a4b;}
+    .marks-badge .mb-val{color:#a6690f;}
+    .podium-card .rank-house{color:#555;}
+  }
+</style>
+</head>
+<body>
+<div id="loginGate">
+  <div class="login-card">
+    <div class="eyebrow">ICBT Staff · Access</div>
+    <h2>Indoor Games <span style="color:var(--gold)">2026</span></h2>
+    <div class="sub">Sign in to view and update the draw</div>
+    <div class="login-field">
+      <label for="loginName">Your Name</label>
+      <input type="text" id="loginName" placeholder="e.g. Kasun Perera" autocomplete="off">
+    </div>
+    <div class="login-field">
+      <label for="loginCode">Access Code</label>
+      <input type="password" id="loginCode" placeholder="Enter access code" autocomplete="off">
+    </div>
+    <div class="login-error" id="loginError"></div>
+    <button class="btn primary" id="loginBtn">Enter</button>
+    <div class="login-note">This is a shared staff tool, not a secure account system — the access code just keeps casual visitors out. Anyone with the code and this link can view or edit the draw.</div>
+  </div>
+</div>
+
+<header>
+  <h1>ICBT Indoor Games 2026<span> Event Manager</span> </h1>
+  <div class="house-strip">
+    <div style="background:var(--samurai)">SAMURAI</div>
+    <div style="background:var(--lions); color:#2b1c00">LIONS</div>
+    <div style="background:var(--pirates)">PIRATES</div>
+    <div style="background:var(--titans)">TITANS</div>
+  </div>
+</header>
+
+<main>
+  <aside class="sidebar">
+    <div class="sidebar-title">🏆 Total Marks</div>
+    <div id="summaryList"></div>
+  </aside>
+  <div id="contentArea">
+    <div id="scaleWrap">
+      <div class="controls">
+        <div>
+          <label for="gameSelect">Game</label>
+          <select id="gameSelect"></select>
+        </div>
+        <button class="btn primary" id="printBtn">🖨️ Print / Save as PDF</button>
+        <span class="save-note" id="loggedInAs"></span>
+      </div>
+      <div id="printTitle">
+        <h2>ICBT Staff Indoor Games 2026 — <span id="printGameName"></span></h2>
+        <div id="printGameName"></div>
+      </div>
+      <div id="content"></div>
+    </div>
+  </div>
+</main>
+<footer>ICBT Staff Indoor Games © 2026 ICBT. All Rights Reserved.</footer>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script>
+// ====================================================================
+// FIREBASE CONFIG — paste YOUR project's config here (see README.md)
+// ====================================================================
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyAjOt0bAOKIyH8DJDgpLmZW9yYVAL1pOyk",
+  authDomain: "icbt-indoor-games-2026.firebaseapp.com",
+  projectId: "icbt-indoor-games-2026",
+  storageBucket: "icbt-indoor-games-2026.firebasestorage.app",
+  messagingSenderId: "81777985539",
+  appId: "1:81777985539:web:ba8031c0c4523bc1552636"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+// ====================================================================
+
+const HOUSES = ['Samurai','Lions','Pirates','Titans'];
+const HOUSE_COLOR = {Samurai:'var(--samurai)', Lions:'var(--lions)', Pirates:'var(--pirates)', Titans:'var(--titans)'};
+const HOUSE_TEXT = {Samurai:'#fff', Lions:'#2b1c00', Pirates:'#fff', Titans:'#fff'};
+
+function slots8(names){
+  const pattern = ['Samurai','Lions','Pirates','Titans','Samurai','Lions','Pirates','Titans'];
+  return names.map((n,i)=>({house:pattern[i], name:n}));
+}
+const BLANK8 = ['','','','','','','',''];
+
+const GAMES = [
+  {id:'pool_men_s', cat:'Pool', label:'Pool — Men (Single)', type:'bracket', slots:slots8(BLANK8)},
+  {id:'pool_men_d', cat:'Pool', label:'Pool — Men (Double)', type:'bracket', slots:slots8(BLANK8)},
+
+  {id:'caram_men_s', cat:'Caram', label:'Caram — Men (Single)', type:'bracket', slots:slots8(BLANK8)},
+  {id:'caram_men_d', cat:'Caram', label:'Caram — Men (Double)', type:'bracket', slots:slots8(BLANK8)},
+  {id:'caram_fem_s', cat:'Caram', label:'Caram — Female (Single)', type:'bracket', slots:slots8(BLANK8)},
+  {id:'caram_fem_d', cat:'Caram', label:'Caram — Female (Double)', type:'bracket', slots:slots8(BLANK8)},
+  {id:'caram_mix_d', cat:'Caram', label:'Caram — Mix (Double)', type:'bracket', slots:slots8(BLANK8)},
+
+  {id:'omi_men_d', cat:'Omi', label:'Omi — Men (Double)', type:'bracket', slots:slots8(BLANK8)},
+  {id:'omi_fem_d', cat:'Omi', label:'Omi — Female (Double)', type:'bracket', slots:slots8(BLANK8)},
+  {id:'omi_mix_d', cat:'Omi', label:'Omi — Mix (Double)', type:'bracket', slots:slots8(BLANK8)},
+
+  {id:'tt_men_s', cat:'Table Tennis', label:'Table Tennis — Men (Single)', type:'bracket', slots:slots8(BLANK8)},
+  {id:'tt_fem_s', cat:'Table Tennis', label:'Table Tennis — Female (Single)', type:'bracket', slots:slots8(BLANK8)},
+  {id:'tt_men_d', cat:'Table Tennis', label:'Table Tennis — Men (Double)', type:'bracket', slots:slots8(BLANK8)},
+  {id:'tt_fem_d', cat:'Table Tennis', label:'Table Tennis — Female (Double)', type:'bracket', slots:slots8(BLANK8)},
+  {id:'tt_mix_d', cat:'Table Tennis', label:'Table Tennis — Mix (Double)', type:'bracket', slots:slots8(BLANK8)},
+
+  {id:'chess_men', cat:'Chess', label:'Chess — Men', type:'bracket', slots:slots8(BLANK8)},
+  {id:'chess_fem', cat:'Chess', label:'Chess — Female', type:'bracket', slots:slots8(BLANK8)},
+
+  {id:'daam_men', cat:'Daam', label:'Daam — Men', type:'bracket', slots:slots8(BLANK8)},
+  {id:'daam_fem', cat:'Daam', label:'Daam — Female', type:'bracket', slots:slots8(BLANK8)},
+
+  {id:'dart', cat:'Dart', label:'Dart — Points Board', type:'dart',
+    houses:{ Samurai:BLANK8.slice(), Lions:BLANK8.slice(), Pirates:BLANK8.slice(), Titans:BLANK8.slice() }}
+];
+
+const gameSelect = document.getElementById('gameSelect');
+const content = document.getElementById('content');
+const printBtn = document.getElementById('printBtn');
+const printGameName = document.getElementById('printGameName');
+
+const cats = [...new Set(GAMES.map(g=>g.cat))];
+cats.forEach(cat=>{
+  const og = document.createElement('optgroup');
+  og.label = cat;
+  GAMES.filter(g=>g.cat===cat).forEach(g=>{
+    const opt = document.createElement('option');
+    opt.value = g.id; opt.textContent = g.label;
+    og.appendChild(opt);
+  });
+  gameSelect.appendChild(og);
+});
+
+let currentGame = GAMES[0].id;
+let currentState = null;
+const gameStatesCache = {};
+const ACCESS_CODE = 'ICBT2026';
+const FIXED_MARKS = {first:50, second:30, third:15};
+
+function defaultBracketState(game){
+  return {
+    slots: game.slots.map(s=>({...s})),
+    winners: {m1:null,m2:null,m3:null,m4:null,semi1:null,semi2:null,third:null,final:null}
+  };
+}
+function defaultDartState(game){
+  const houses = {};
+  Object.keys(game.houses).forEach(h=>{
+    houses[h] = game.houses[h].map(n=>({name:n, scores:[0,0,0]}));
+  });
+  return {houses};
+}
+
+async function loadState(game){
+  try{
+    const doc = await db.collection('draws').doc(game.id).get();
+    if(doc.exists && doc.data().state) return JSON.parse(doc.data().state);
+  }catch(e){ console.error('load failed', e); }
+  return game.type==='dart' ? defaultDartState(game) : defaultBracketState(game);
+}
+async function saveState(game, state){
+  try{
+    await db.collection('draws').doc(game.id).set({
+      state: JSON.stringify(state),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }catch(e){ console.error('save failed', e); }
+}
+
+function houseOptionsHTML(selected){
+  return HOUSES.map(h=>`<option value="${h}" ${h===selected?'selected':''}>${h}</option>`).join('');
+}
+
+// ---- Bracket participant resolution ----
+function getParticipant(state, node, idx){
+  const roundMap = {m1:0,m2:1,m3:2,m4:3};
+  if(node in roundMap){
+    const base = roundMap[node]*2;
+    return state.slots[base+idx];
+  }
+  if(node==='semi1') return idx===0 ? getWinner(state,'m1') : getWinner(state,'m2');
+  if(node==='semi2') return idx===0 ? getWinner(state,'m3') : getWinner(state,'m4');
+  if(node==='third') return idx===0 ? getLoser(state,'semi1') : getLoser(state,'semi2');
+  if(node==='final') return idx===0 ? getWinner(state,'semi1') : getWinner(state,'semi2');
+  return null;
+}
+function getWinner(state,node){
+  const w = state.winners[node];
+  if(w===null || w===undefined) return null;
+  return getParticipant(state,node,w);
+}
+function getLoser(state,node){
+  const w = state.winners[node];
+  if(w===null || w===undefined) return null;
+  return getParticipant(state,node,1-w);
+}
+
+// ---- Placings + total marks summary (left sidebar) ----
+function getPlacings(game, state){
+  if(!state) return {first:null, second:null, third:null};
+  if(game.type==='dart'){
+    const total = h => state.houses[h].reduce((s,p)=>s + p.scores.reduce((a,b)=>a+(Number(b)||0),0), 0);
+    const ranked = HOUSES.map(h=>({house:h, pts: total(h)})).sort((a,b)=>b.pts-a.pts);
+    // Nobody has scored anything yet -> no placings, no marks.
+    if(ranked.every(r=>r.pts===0)) return {first:null, second:null, third:null};
+    return {first: ranked[0]?.house || null, second: ranked[1]?.house || null, third: ranked[2]?.house || null};
+  }
+  const first = getWinner(state,'final');
+  const second = getLoser(state,'final');
+  const third = getWinner(state,'third');
+  return {first: first?.house || null, second: second?.house || null, third: third?.house || null};
+}
+function computeTotals(){
+  const totals = {Samurai:0, Lions:0, Pirates:0, Titans:0};
+  GAMES.forEach(g=>{
+    const state = gameStatesCache[g.id];
+    if(!state) return;
+    const pl = getPlacings(g, state);
+    if(pl.first && totals[pl.first]!=null) totals[pl.first] += FIXED_MARKS.first;
+    if(pl.second && totals[pl.second]!=null) totals[pl.second] += FIXED_MARKS.second;
+    if(pl.third && totals[pl.third]!=null) totals[pl.third] += FIXED_MARKS.third;
+  });
+  return totals;
+}
+function renderSummary(){
+  const el = document.getElementById('summaryList');
+  if(!el) return;
+  const totals = computeTotals();
+  const ranked = HOUSES.map(h=>({house:h, pts:totals[h]})).sort((a,b)=>b.pts-a.pts);
+  el.innerHTML = ranked.map((r,i)=>`
+    <div class="summary-row">
+      <span class="summary-rank">${i+1}</span>
+      <span class="summary-dot" style="background:${HOUSE_COLOR[r.house]}"></span>
+      <span class="summary-house">${r.house}</span>
+      <span class="summary-pts">${r.pts}</span>
+    </div>`).join('');
+}
+
+function setWinner(node, idx){
+  // Clicking the already-ticked winner again unticks it (sets back to no winner)
+  currentState.winners[node] = (currentState.winners[node]===idx) ? null : idx;
+  if(node==='m1'||node==='m2') currentState.winners.semi1 = null;
+  if(node==='m3'||node==='m4') currentState.winners.semi2 = null;
+  if(node==='semi1'||node==='semi2'){ currentState.winners.third = null; currentState.winners.final = null; }
+  saveState(GAMES.find(g=>g.id===currentGame), currentState);
+  renderBracket(GAMES.find(g=>g.id===currentGame));
+  renderSummary();
+}
+
+function slotRowHTML(node, idx, participant, editable, fmt){
+  const p = participant || {house:'Samurai', name:''};
+  const winnerIdx = currentState.winners[node];
+  const isWinner = winnerIdx===idx;
+  const isLoser = winnerIdx!=null && winnerIdx!==idx;
+  const clickable = editable ? '' : (participant ? 'data-clickable="1"' : '');
+  let inner;
+  if(editable){
+    inner = `
+      <span class="win-radio ${isWinner?'checked':''}" data-win-radio="1" data-node="${node}" data-idx="${idx}" title="Mark as winner"></span>
+      <select data-node="${node}" data-idx="${idx}" data-field="house">${houseOptionsHTML(p.house)}</select>
+      <input type="text" placeholder="Player / pair name" value="${(p.name||'').replace(/"/g,'&quot;')}" data-node="${node}" data-idx="${idx}" data-field="name">`;
+  }else{
+    inner = `<span class="win-radio ${isWinner?'checked':''}" data-win-radio="1" data-node="${node}" data-idx="${idx}" title="Mark as winner" style="${participant? '':'opacity:.3; pointer-events:none;'}"></span>
+      <span class="house-dot" style="background:${participant?HOUSE_COLOR[participant.house]:'#333'}"></span>
+      <span style="flex:1; font-size:13px; ${participant? '':'color:var(--muted)'}">${participant ? (participant.house + (participant.name? ' · '+participant.name:'')) : 'TBD'}</span>`;
+  }
+  return `<div class="slot ${isWinner?'winner':''} ${isLoser?'loser':''}" ${clickable} data-win-node="${editable?'':node}" data-win-idx="${idx}">
+      ${inner}
+      <span class="win-mark">🏆</span>
+    </div>`;
+}
+
+function matchCardHTML(node, title, fmt, editable){
+  const pA = getParticipant(currentState, node, 0);
+  const pB = getParticipant(currentState, node, 1);
+  return `<div class="match" data-match="${node}">
+    <div class="match-head"><span>${title}</span><span class="fmt">${fmt}</span></div>
+    ${slotRowHTML(node,0,pA,editable,fmt)}
+    ${slotRowHTML(node,1,pB,editable,fmt)}
+  </div>`;
+}
+
+function renderBracket(game){
+  printGameName.textContent = game.label;
+  document.title = `ICBT Staff Indoor Games 2026 - ${game.label}`;
+  content.innerHTML = `
+    <div class="bracket-wrap">
+      <div class="bracket">
+        <div class="col round1">
+          <div class="col-title">Round 1</div>
+          <div class="col-body">
+            ${matchCardHTML('m1','Match 01','Knockout',true)}
+            ${matchCardHTML('m2','Match 02','Knockout',true)}
+            ${matchCardHTML('m3','Match 03','Knockout',true)}
+            ${matchCardHTML('m4','Match 04','Knockout',true)}
+          </div>
+        </div>
+        <div class="col semicol">
+          <div class="col-title">Semis &amp; 3rd Place</div>
+          <div class="col-body">
+            ${matchCardHTML('semi1','Semi Final 1','Knockout',false)}
+            ${matchCardHTML('third','3rd Place','Best of 03',false)}
+            ${matchCardHTML('semi2','Semi Final 2','Knockout',false)}
+          </div>
+        </div>
+        <div class="col col-final">
+          <div class="col-title">Final</div>
+          <div class="col-body">
+            ${matchCardHTML('final','Final','Best of 03',false)}
+          </div>
+        </div>
+      </div>
+      <div class="podium" id="podium"></div>
+    </div>
+  `;
+
+  content.querySelectorAll('select[data-field], input[data-field]').forEach(el=>{
+    el.addEventListener('input', e=>{
+      const {node, idx, field} = e.target.dataset;
+      const roundMap = {m1:0,m2:1,m3:2,m4:3};
+      const base = roundMap[node]*2 + Number(idx);
+      currentState.slots[base][field] = e.target.value;
+      saveState(game, currentState);
+      renderBracketDownstreamOnly(game);
+    });
+  });
+
+  bindWinnerClicks();
+  renderPodium(game);
+  requestAnimationFrame(fitToScreen);
+}
+
+function bindWinnerClicks(){
+  content.querySelectorAll('.slot[data-clickable="1"]').forEach(el=>{
+    el.onclick = ()=>{
+      const node = el.dataset.winNode;
+      const idx = Number(el.dataset.winIdx);
+      setWinner(node, idx);
+    };
+  });
+  content.querySelectorAll('[data-win-radio="1"]').forEach(el=>{
+    el.onclick = (e)=>{
+      e.stopPropagation();
+      const {node, idx} = el.dataset;
+      setWinner(node, Number(idx));
+    };
+  });
+}
+
+function podiumCardHTML(rankNum, cls, label, teamName, subLabel, markKey, won){
+  const val = FIXED_MARKS[markKey];
+  if(won===undefined) won = !!teamName;
+  return `
+    <div class="podium-card ${cls}">
+      <div class="rank-num">${rankNum}</div>
+      <div class="rank-info">
+        <div class="rank-label">${label}</div>
+        <div class="rank-team">${teamName || 'TBD'}</div>
+        <div class="rank-house">${subLabel || ''}</div>
+      </div>
+      <div class="marks-badge ${won?'show':''}">
+        <span class="mb-label">Marks</span>
+        <span class="mb-val">+${val}</span>
+      </div>
+    </div>`;
+}
+
+function renderPodium(game){
+  const podium = document.getElementById('podium');
+  if(!podium) return;
+  const first = getWinner(currentState,'final');
+  const second = getLoser(currentState,'final');
+  const third = getWinner(currentState,'third');
+  podium.innerHTML =
+    podiumCardHTML('1st','gold','Champion', first?.house, first?.name, 'first') +
+    podiumCardHTML('2nd','silver','Runner-up', second?.house, second?.name, 'second') +
+    podiumCardHTML('3rd','bronze','3rd Place', third?.house, third?.name, 'third');
+}
+
+// Refresh only the read-only columns so typing doesn't lose focus
+function renderBracketDownstreamOnly(game){
+  ['semi1','semi2','third','final'].forEach(node=>{
+    const card = content.querySelector(`.match[data-match="${node}"]`);
+    if(!card) return;
+    const pA = getParticipant(currentState, node, 0);
+    const pB = getParticipant(currentState, node, 1);
+    const rows = card.querySelectorAll('.slot');
+    [pA,pB].forEach((p,idx)=>{
+      const row = rows[idx];
+      const winnerIdx = currentState.winners[node];
+      row.classList.toggle('winner', winnerIdx===idx);
+      row.classList.toggle('loser', winnerIdx!=null && winnerIdx!==idx);
+      const dot = row.querySelector('.house-dot');
+      const span = row.querySelector('span:not(.win-mark):not(.house-dot):not(.win-radio)');
+      const radio = row.querySelector('.win-radio');
+      if(dot) dot.style.background = p?HOUSE_COLOR[p.house]:'#333';
+      if(span) span.textContent = p ? (p.house + (p.name? ' · '+p.name:'')) : 'TBD';
+      if(span) span.style.color = p ? '' : 'var(--muted)';
+      if(radio){
+        radio.classList.toggle('checked', winnerIdx===idx);
+        radio.style.opacity = p ? '1' : '.3';
+        radio.style.pointerEvents = p ? 'auto' : 'none';
+      }
+      if(p){ row.setAttribute('data-clickable','1'); } else { row.removeAttribute('data-clickable'); }
+    });
+  });
+  bindWinnerClicks();
+  renderPodium(game);
+  requestAnimationFrame(fitToScreen);
+}
+
+let resizeTimer;
+window.addEventListener('resize', ()=>{
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(fitToScreen, 120);
+});
+window.addEventListener('beforeprint', fitToScreen);
+window.addEventListener('afterprint', fitToScreen);
+
+// ---- Scale the whole page content to fit the viewport with no scrolling ----
+function fitToScreen(){
+  const wrap = document.getElementById('scaleWrap');
+  const mainEl = document.getElementById('contentArea');
+  if(!wrap || !mainEl) return;
+  wrap.style.transform = 'none';
+  const availH = mainEl.clientHeight;
+  const availW = mainEl.clientWidth;
+  const contentH = wrap.scrollHeight;
+  const contentW = wrap.scrollWidth;
+  const scale = Math.min(1, availH/contentH, availW/contentW);
+  wrap.style.transform = `scale(${scale})`;
+}
+
+function renderDart(game){
+  printGameName.textContent = game.label;
+  document.title = `ICBT Staff Indoor Games 2026 - ${game.label}`;
+  const total = h => currentState.houses[h].reduce((sum,p)=>sum + p.scores.reduce((a,b)=>a+(Number(b)||0),0), 0);
+  content.innerHTML = `<div class="dart-grid">
+    ${HOUSES.map(h=>`
+      <div class="house-card">
+        <div class="hcard-head" style="background:${HOUSE_COLOR[h]}; color:${HOUSE_TEXT[h]}">${h.toUpperCase()}</div>
+        ${currentState.houses[h].map((p,pi)=>`
+          <div class="dart-row">
+            <input type="text" placeholder="Player name" value="${(p.name||'').replace(/"/g,'&quot;')}" data-house="${h}" data-pi="${pi}" data-field="name">
+            ${[0,1,2].map(si=>`<input type="number" value="${p.scores[si]}" data-house="${h}" data-pi="${pi}" data-si="${si}">`).join('')}
+            <span class="dart-sum" data-sum="${h}-${pi}">${p.scores.reduce((a,b)=>a+(Number(b)||0),0)}</span>
+          </div>`).join('')}
+        <div class="dart-total"><span>Total Points</span><span data-total="${h}">${total(h)}</span></div>
+      </div>
+    `).join('')}
+  </div>
+  <div class="podium" id="dartPodium"></div>`;
+
+  function renderDartPodium(){
+    const podium = content.querySelector('#dartPodium');
+    if(!podium) return;
+    const ranked = HOUSES.map(h=>({house:h, pts: total(h)})).sort((a,b)=>b.pts-a.pts);
+    const medal = ['gold','silver','bronze'];
+    const rankLabel = ['1st','2nd','3rd'];
+    const nameLabel = ['1st Place','2nd Place','3rd Place'];
+    const markKeys = ['first','second','third'];
+    podium.innerHTML = ranked.slice(0,3).map((r,i)=>
+      podiumCardHTML(rankLabel[i], medal[i], nameLabel[i], r.house, r.pts+' pts', markKeys[i], r.pts>0)
+    ).join('');
+  }
+  renderDartPodium();
+
+  content.querySelectorAll('input[data-field="name"]').forEach(el=>{
+    el.addEventListener('input', e=>{
+      const {house, pi} = e.target.dataset;
+      currentState.houses[house][pi].name = e.target.value;
+      saveState(game, currentState);
+    });
+  });
+  content.querySelectorAll('input[type=number]').forEach(el=>{
+    el.addEventListener('input', e=>{
+      const {house, pi, si} = e.target.dataset;
+      currentState.houses[house][pi].scores[si] = Number(e.target.value)||0;
+      saveState(game, currentState);
+      const rowSum = currentState.houses[house][pi].scores.reduce((a,b)=>a+(Number(b)||0),0);
+      content.querySelector(`[data-sum="${house}-${pi}"]`).textContent = rowSum;
+      content.querySelector(`[data-total="${house}"]`).textContent = total(house);
+      renderDartPodium();
+      renderSummary();
+    });
+  });
+  requestAnimationFrame(fitToScreen);
+}
+
+async function renderGame(){
+  const game = GAMES.find(g=>g.id===currentGame);
+  if(game.id in gameStatesCache){
+    // Already have this game's live state in memory — use it directly rather
+    // than re-fetching from storage. Re-fetching here was the source of the
+    // "switching games resets it" bug: if a save from just before the switch
+    // hadn't finished landing in storage yet, the re-fetch would read stale/
+    // blank data and overwrite the good in-memory copy with it, wiping out
+    // real progress (and dropping Total Marks along with it).
+    currentState = gameStatesCache[game.id];
+  } else {
+    content.innerHTML = '<div style="text-align:center; color:var(--muted); padding:40px;">Loading draw…</div>';
+    currentState = await loadState(game);
+    gameStatesCache[game.id] = currentState;
+  }
+  if(game.type==='dart') renderDart(game); else renderBracket(game);
+  renderSummary();
+}
+
+// Warm the cache for every other game so the Total Marks sidebar is accurate
+// immediately, not just once each game has been visited.
+async function primeSummaryCache(){
+  await Promise.all(GAMES.map(async g=>{
+    if(!(g.id in gameStatesCache)) gameStatesCache[g.id] = await loadState(g);
+  }));
+  renderSummary();
+}
+
+gameSelect.addEventListener('change', e=>{
+  currentGame = e.target.value;
+  renderGame();
+});
+
+printBtn.addEventListener('click', ()=>{ window.print(); });
+
+// ---- Login gate (name + shared access code — a lightweight staff gate, not real auth) ----
+const loginGate = document.getElementById('loginGate');
+const loginName = document.getElementById('loginName');
+const loginCode = document.getElementById('loginCode');
+const loginError = document.getElementById('loginError');
+const loginBtn = document.getElementById('loginBtn');
+const loggedInAs = document.getElementById('loggedInAs');
+
+async function attemptLogin(){
+  const name = loginName.value.trim();
+  const code = loginCode.value.trim();
+  if(!name){ loginError.textContent = 'Please enter your name.'; loginName.focus(); return; }
+  if(code !== ACCESS_CODE){ loginError.textContent = 'Incorrect access code.'; loginCode.value=''; loginCode.focus(); return; }
+  loginError.textContent = '';
+  loginBtn.disabled = true;
+  loginBtn.textContent = 'Signing in…';
+  loginGate.style.display = 'none';
+  loggedInAs.innerHTML = `Signed in as <b>${name.replace(/</g,'&lt;')}</b> · Saved to shared storage`;
+  renderGame();
+  primeSummaryCache();
+}
+loginBtn.addEventListener('click', attemptLogin);
+loginCode.addEventListener('keydown', e=>{ if(e.key==='Enter') attemptLogin(); });
+loginName.addEventListener('keydown', e=>{ if(e.key==='Enter') loginCode.focus(); });
+loginName.focus();
+</script>
+</body>
+</html>
