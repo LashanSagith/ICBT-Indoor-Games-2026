@@ -287,12 +287,6 @@
 // ====================================================================
 // FIREBASE CONFIG — paste YOUR project's config here (see README.md)
 // ====================================================================
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyAjOt0bAOKIyH8DJDgpLmZW9yYVAL1pOyk",
   authDomain: "icbt-indoor-games-2026.firebaseapp.com",
@@ -301,9 +295,8 @@ const firebaseConfig = {
   messagingSenderId: "81777985539",
   appId: "1:81777985539:web:ba8031c0c4523bc1552636"
 };
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 // ====================================================================
 
 const HOUSES = ['Samurai','Lions','Pirates','Titans'];
