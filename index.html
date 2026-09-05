@@ -528,7 +528,7 @@ function slotRowHTML(node, idx, participant, editable, fmt){
     inner = `
       <span class="win-radio ${isWinner?'checked':''}" data-win-radio="1" data-node="${node}" data-idx="${idx}" title="Mark as winner"></span>
       <select data-node="${node}" data-idx="${idx}" data-field="house">${houseOptionsHTML(p.house)}</select>
-      <input type="text" placeholder="Player / pair name" value="${(p.name||'').replace(/"/g,'&quot;')}" data-node="${node}" data-idx="${idx}" data-field="name">`;
+      <input type="text" placeholder="Player / Pair Name" value="${(p.name||'').replace(/"/g,'&quot;')}" data-node="${node}" data-idx="${idx}" data-field="name">`;
   }else{
     inner = `<span class="win-radio ${isWinner?'checked':''}" data-win-radio="1" data-node="${node}" data-idx="${idx}" title="Mark as winner" style="${participant? '':'opacity:.3; pointer-events:none;'}"></span>
       <span class="house-dot" style="background:${participant?HOUSE_COLOR[participant.house]:'#333'}"></span>
@@ -810,7 +810,7 @@ function renderDart(game){
         <div class="hcard-head" style="background:${HOUSE_COLOR[h]}; color:${HOUSE_TEXT[h]}">${h.toUpperCase()}</div>
         ${currentState.houses[h].map((p,pi)=>`
           <div class="dart-row">
-            <input type="text" placeholder="Player name" value="${(p.name||'').replace(/"/g,'&quot;')}" data-house="${h}" data-pi="${pi}" data-field="name">
+            <input type="text" placeholder="Player Name" value="${(p.name||'').replace(/"/g,'&quot;')}" data-house="${h}" data-pi="${pi}" data-field="name">
             ${[0,1,2].map(si=>`<input type="number" value="${p.scores[si]}" data-house="${h}" data-pi="${pi}" data-si="${si}">`).join('')}
             <span class="dart-sum" data-sum="${h}-${pi}">${p.scores.reduce((a,b)=>a+(Number(b)||0),0)}</span>
           </div>`).join('')}
