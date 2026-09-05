@@ -80,10 +80,10 @@
   select:focus, input:focus{outline:2px solid var(--gold); outline-offset:1px;}
   #gameSelect{min-width:280px; flex:1;}
   .btn{
-    background:var(--panel2); border:1px solid var(--line); color:var(--text);
-    padding:8px 14px; border-radius:6px; font-size:13px; cursor:pointer; font-weight:600;
-    text-decoration:none; display:inline-flex; align-items:center; gap:4px;
-  }
+  background:var(--panel2); border:1px solid var(--line); color:var(--text);
+  padding:8px 14px; border-radius:6px; font-size:13px; cursor:pointer; font-weight:600;
+  text-decoration:none; display:inline-flex; align-items:center; justify-content:center; gap:4px;
+}
   .btn:hover{border-color:var(--gold); color:var(--gold);}
   .btn.primary{background:var(--gold); color:#221600; border-color:var(--gold);}
   .btn.primary:hover{color:#221600; filter:brightness(1.08);}
@@ -259,7 +259,7 @@
       <input type="password" id="loginCode" placeholder="Enter password" autocomplete="off">
     </div>
     <div class="login-error" id="loginError"></div>
-    <button class="btn primary" id="loginBtn">Enter</button>
+    <button class="btn primary" id="loginBtn">Sign In</button>
     <div class="login-note">This is a shared staff tool, not a secure account system — the user name and password just keep casual visitors out. Anyone with these details and this link can view or edit the draw.</div>
   </div>
 </div>
