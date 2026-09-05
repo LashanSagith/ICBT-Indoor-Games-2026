@@ -254,12 +254,12 @@
       <input type="text" id="loginName" placeholder="Enter user name" autocomplete="off">
     </div>
     <div class="login-field">
-      <label for="loginCode">Access Code</label>
-      <input type="password" id="loginCode" placeholder="Enter access code" autocomplete="off">
+      <label for="loginCode">Password</label>
+      <input type="password" id="loginCode" placeholder="Enter password" autocomplete="off">
     </div>
     <div class="login-error" id="loginError"></div>
     <button class="btn primary" id="loginBtn">Enter</button>
-    <div class="login-note">This is a shared staff tool, not a secure account system — the access code just keeps casual visitors out. Anyone with the code and this link can view or edit the draw.</div>
+    <div class="login-note">This is a shared staff tool, not a secure account system — the user name and password just keep casual visitors out. Anyone with these details and this link can view or edit the draw.</div>
   </div>
 </div>
 
@@ -268,8 +268,8 @@
     <h3>⚠️ Reset This Game?</h3>
     <p>This will permanently clear all teams, names and match results for <b id="resetGameName"></b> — and cannot be undone. Every other game and the Total Marks will not be affected.</p>
     <div class="login-field">
-      <label for="resetCode">Access Code</label>
-      <input type="password" id="resetCode" placeholder="Enter access code" autocomplete="off">
+      <label for="resetCode">Password</label>
+      <input type="password" id="resetCode" placeholder="Enter password" autocomplete="off">
     </div>
     <div class="login-error" id="resetError"></div>
     <div class="modal-actions">
@@ -402,8 +402,8 @@ cats.forEach(cat=>{
 let currentGame = GAMES[0].id;
 let currentState = null;
 const gameStatesCache = {};
-const USER_NAME = 'Lashan';
-const ACCESS_CODE = 'ICBT@#2026';
+const FIXED_USERNAME = 'ICBTIG';
+const ACCESS_CODE = 'ICBT@2026';
 const FIXED_MARKS = {first:50, second:30, third:15};
 
 function defaultBracketState(game){
@@ -420,12 +420,82 @@ function defaultDartState(game){
   return {houses};
 }
 
-async function loadState(game){
-  try{
-    const doc = await db.collection('draws').doc(game.id).get();
-    if(doc.exists && doc.data().state) return JSON.parse(doc.data().state);
-  }catch(e){ console.error('load failed', e); }
-  return game.type==='dart' ? defaultDartState(game) : defaultBracketState(game);
+// ---- Live sync: one onSnapshot listener per game, kept running for the whole
+// session so any device's change reaches every other device without a manual
+// refresh. hasPendingWrites lets us ignore the instant local echo of our own
+// writes (the UI is already showing that data) so typing isn't interrupted by
+// our own keystrokes; only a genuinely different, server-confirmed state
+// (i.e. a change from another device) triggers a re-render. ----
+const gameListeners = {};
+const gameReady = {};
+
+function attachGameListener(game){
+  if(gameListeners[game.id]) return gameReady[game.id];
+  gameReady[game.id] = new Promise(resolve=>{
+    let loaded = false;
+    gameListeners[game.id] = db.collection('draws').doc(game.id).onSnapshot(snap=>{
+      let state = null;
+      if(snap.exists && snap.data().state){
+        try{ state = JSON.parse(snap.data().state); }catch(e){ state = null; }
+      }
+      if(!state) state = game.type==='dart' ? defaultDartState(game) : defaultBracketState(game);
+
+      if(!loaded){
+        loaded = true;
+        gameStatesCache[game.id] = state;
+        resolve();
+        return;
+      }
+      if(snap.metadata.hasPendingWrites) return; // our own in-flight write — already on screen
+      const incomingJSON = JSON.stringify(state);
+      if(incomingJSON === JSON.stringify(gameStatesCache[game.id])) return; // no real change
+
+      gameStatesCache[game.id] = state;
+      if(game.id === currentGame){
+        const focusInfo = captureFocus();
+        currentState = state;
+        if(game.type==='dart') renderDart(game); else renderBracket(game);
+        restoreFocus(focusInfo);
+      }
+      renderSummary();
+    }, err=>{
+      console.error('Live update failed for', game.id, err);
+      resolve();
+    });
+  });
+  return gameReady[game.id];
+}
+
+// Remember which field (if any) was focused before an incoming remote update
+// forces a re-render, so a device that's actively typing in a different field
+// than the one that just changed doesn't lose its cursor.
+function captureFocus(){
+  const el = document.activeElement;
+  if(!el || !content.contains(el)) return null;
+  const d = el.dataset || {};
+  return {
+    node: d.node, idx: d.idx, field: d.field, house: d.house, pi: d.pi, si: d.si,
+    tag: el.tagName,
+    selStart: (typeof el.selectionStart === 'number') ? el.selectionStart : null,
+    selEnd: (typeof el.selectionEnd === 'number') ? el.selectionEnd : null
+  };
+}
+function restoreFocus(info){
+  if(!info) return;
+  let sel = null;
+  if(info.node !== undefined && info.field !== undefined){
+    sel = `[data-node="${info.node}"][data-idx="${info.idx}"][data-field="${info.field}"]`;
+  }else if(info.house !== undefined){
+    sel = info.field ? `[data-house="${info.house}"][data-pi="${info.pi}"][data-field="${info.field}"]`
+                      : `[data-house="${info.house}"][data-pi="${info.pi}"][data-si="${info.si}"]`;
+  }
+  if(!sel) return;
+  const el = content.querySelector(sel);
+  if(!el) return;
+  el.focus();
+  if(info.selStart !== null && el.setSelectionRange){
+    try{ el.setSelectionRange(info.selStart, info.selEnd); }catch(e){}
+  }
 }
 async function saveState(game, state){
   try{
@@ -858,29 +928,21 @@ function renderDart(game){
 
 async function renderGame(){
   const game = GAMES.find(g=>g.id===currentGame);
-  if(game.id in gameStatesCache){
-    // Already have this game's live state in memory — use it directly rather
-    // than re-fetching from storage. Re-fetching here was the source of the
-    // "switching games resets it" bug: if a save from just before the switch
-    // hadn't finished landing in storage yet, the re-fetch would read stale/
-    // blank data and overwrite the good in-memory copy with it, wiping out
-    // real progress (and dropping Total Marks along with it).
-    currentState = gameStatesCache[game.id];
-  } else {
+  attachGameListener(game);
+  if(!(game.id in gameStatesCache)){
     content.innerHTML = '<div style="text-align:center; color:var(--muted); padding:40px;">Loading draw…</div>';
-    currentState = await loadState(game);
-    gameStatesCache[game.id] = currentState;
+    await gameReady[game.id];
   }
+  currentState = gameStatesCache[game.id];
   if(game.type==='dart') renderDart(game); else renderBracket(game);
   renderSummary();
 }
 
-// Warm the cache for every other game so the Total Marks sidebar is accurate
-// immediately, not just once each game has been visited.
+// Attach a live listener to every game so the Total Marks sidebar stays
+// accurate and up to date in real time, not just once each game has been
+// visited.
 async function primeSummaryCache(){
-  await Promise.all(GAMES.map(async g=>{
-    if(!(g.id in gameStatesCache)) gameStatesCache[g.id] = await loadState(g);
-  }));
+  await Promise.all(GAMES.map(g=>attachGameListener(g)));
   renderSummary();
 }
 
@@ -953,7 +1015,7 @@ resetModal.addEventListener('click', e=>{ if(e.target===resetModal) closeResetMo
 async function confirmReset(){
   const code = resetCode.value.trim();
   if(code !== ACCESS_CODE){
-    resetError.textContent = 'Incorrect access code.';
+    resetError.textContent = 'Incorrect password.';
     resetCode.value = '';
     resetCode.focus();
     return;
@@ -988,8 +1050,13 @@ const loggedInAs = document.getElementById('loggedInAs');
 async function attemptLogin(){
   const name = loginName.value.trim();
   const code = loginCode.value.trim();
-  if(!name){ loginError.textContent = 'Please enter your name.'; loginName.focus(); return; }
-  if(code !== ACCESS_CODE){ loginError.textContent = 'Incorrect access code.'; loginCode.value=''; loginCode.focus(); return; }
+  if(!name || !code){ loginError.textContent = 'Please enter the user name and password.'; loginName.focus(); return; }
+  if(name !== FIXED_USERNAME || code !== ACCESS_CODE){
+    loginError.textContent = 'Incorrect user name or password.';
+    loginCode.value = '';
+    loginCode.focus();
+    return;
+  }
   loginError.textContent = '';
   loginBtn.disabled = true;
   loginBtn.textContent = 'Signing in…';
