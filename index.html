@@ -93,14 +93,17 @@
   #printTitle div{font-size:12px; color:var(--muted);}
 
   .bracket-wrap{position:relative;}
+  #bracketLinesOverlay{position:fixed; inset:0; pointer-events:none; z-index:9999;}
+  #bracketLinesOverlay path{fill:none; stroke:#3a4650; stroke-width:2;}
+  #bracketLinesOverlay text{fill:var(--gold); font-size:10px; font-weight:700; font-family:inherit;}
+  @media print{ #bracketLinesOverlay{display:none;} }
 
   .bracket{position:relative; z-index:1; display:flex; gap:60px; align-items:stretch; overflow-x:auto; padding-bottom:10px;}
   .col{display:flex; flex-direction:column; min-width:250px;}
   .col-title{font-size:12px; text-transform:uppercase; letter-spacing:2px; color:var(--gold); font-weight:700; text-align:center; margin-bottom:8px;}
   .col-body{position:relative;}
   .col.round1 .col-body{display:flex; flex-direction:column; gap:12px;}
-  .col:not(.round1) .col-body{display:flex; flex-direction:column; justify-content:space-between; height:100%;}
-  .col.col-final .col-body{justify-content:center;}
+  .col:not(.round1) .col-body .match{position:absolute; left:0; right:0; opacity:0;}
 
   .match{
     background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden;
@@ -201,10 +204,24 @@
   #loggedInAs{font-size:11px; color:var(--muted);}
   #loggedInAs b{color:var(--text);}
 
+  .modal-overlay{
+    position:fixed; inset:0; z-index:60; display:none; align-items:center; justify-content:center;
+    background:rgba(0,0,0,.55); padding:16px;
+  }
+  .modal-overlay.show{display:flex;}
+  .modal-card{
+    width:100%; max-width:380px; background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:24px 22px; box-shadow:0 10px 40px rgba(0,0,0,.45);
+  }
+  .modal-card h3{margin:0 0 10px; font-size:17px; color:var(--gold);}
+  .modal-card p{font-size:13px; color:var(--muted); line-height:1.5; margin:0 0 14px;}
+  .modal-actions{display:flex; gap:10px; margin-top:4px;}
+  .modal-actions .btn{flex:1;}
+
   @media print{
     html,body{height:auto !important; overflow:visible !important;}
     body{background:#fff !important; color:#111 !important; display:block !important;}
-    header, .controls, footer, .sidebar, #loginGate{display:none !important;}
+    header, .controls, footer, .sidebar, #loginGate, .modal-overlay{display:none !important;}
     #printTitle{display:block !important;}
     #printTitle h2{color:#111;}
     .col-title{display:none !important;}
@@ -233,8 +250,8 @@
     <h2>Indoor Games <span style="color:var(--gold)">2026</span></h2>
     <div class="sub">Sign in to view and update the draw</div>
     <div class="login-field">
-      <label for="loginName">Your Name</label>
-      <input type="text" id="loginName" placeholder="e.g. Kasun Perera" autocomplete="off">
+      <label for="loginName">User Name</label>
+      <input type="text" id="loginName" placeholder="Enter user name" autocomplete="off">
     </div>
     <div class="login-field">
       <label for="loginCode">Access Code</label>
@@ -243,6 +260,22 @@
     <div class="login-error" id="loginError"></div>
     <button class="btn primary" id="loginBtn">Enter</button>
     <div class="login-note">This is a shared staff tool, not a secure account system — the access code just keeps casual visitors out. Anyone with the code and this link can view or edit the draw.</div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="resetModal">
+  <div class="modal-card">
+    <h3>⚠️ Reset This Game?</h3>
+    <p>This will permanently clear all teams, names and match results for <b id="resetGameName"></b> — and cannot be undone. Every other game and the Total Marks will not be affected.</p>
+    <div class="login-field">
+      <label for="resetCode">Access Code</label>
+      <input type="password" id="resetCode" placeholder="Enter access code" autocomplete="off">
+    </div>
+    <div class="login-error" id="resetError"></div>
+    <div class="modal-actions">
+      <button class="btn" id="resetCancelBtn">Cancel</button>
+      <button class="btn primary" id="resetConfirmBtn">Reset Game</button>
+    </div>
   </div>
 </div>
 
@@ -269,6 +302,8 @@
           <select id="gameSelect"></select>
         </div>
         <button class="btn primary" id="printBtn">🖨️ Print / Save as PDF</button>
+        <button class="btn" id="exportBtn">📊 Export Results (Excel)</button>
+        <button class="btn" id="resetBtn">♻️ Reset This Game</button>
         <span class="save-note" id="loggedInAs"></span>
       </div>
       <div id="printTitle">
@@ -283,6 +318,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 // ====================================================================
 // FIREBASE CONFIG — paste YOUR project's config here (see README.md)
@@ -304,8 +340,7 @@ const HOUSE_COLOR = {Samurai:'var(--samurai)', Lions:'var(--lions)', Pirates:'va
 const HOUSE_TEXT = {Samurai:'#fff', Lions:'#2b1c00', Pirates:'#fff', Titans:'#fff'};
 
 function slots8(names){
-  const pattern = ['Samurai','Lions','Pirates','Titans','Samurai','Lions','Pirates','Titans'];
-  return names.map((n,i)=>({house:pattern[i], name:n}));
+  return names.map(n=>({house:'', name:n}));
 }
 const BLANK8 = ['','','','','','','',''];
 
@@ -343,6 +378,14 @@ const gameSelect = document.getElementById('gameSelect');
 const content = document.getElementById('content');
 const printBtn = document.getElementById('printBtn');
 const printGameName = document.getElementById('printGameName');
+const exportBtn = document.getElementById('exportBtn');
+const resetBtn = document.getElementById('resetBtn');
+const resetModal = document.getElementById('resetModal');
+const resetGameName = document.getElementById('resetGameName');
+const resetCode = document.getElementById('resetCode');
+const resetError = document.getElementById('resetError');
+const resetCancelBtn = document.getElementById('resetCancelBtn');
+const resetConfirmBtn = document.getElementById('resetConfirmBtn');
 
 const cats = [...new Set(GAMES.map(g=>g.cat))];
 cats.forEach(cat=>{
@@ -359,7 +402,8 @@ cats.forEach(cat=>{
 let currentGame = GAMES[0].id;
 let currentState = null;
 const gameStatesCache = {};
-const ACCESS_CODE = 'ICBT2026';
+const USER_NAME = 'Lashan';
+const ACCESS_CODE = 'ICBT@#2026';
 const FIXED_MARKS = {first:50, second:30, third:15};
 
 function defaultBracketState(game){
@@ -393,7 +437,8 @@ async function saveState(game, state){
 }
 
 function houseOptionsHTML(selected){
-  return HOUSES.map(h=>`<option value="${h}" ${h===selected?'selected':''}>${h}</option>`).join('');
+  const placeholder = `<option value="" ${!selected?'selected':''}>Select</option>`;
+  return placeholder + HOUSES.map(h=>`<option value="${h}" ${h===selected?'selected':''}>${h}</option>`).join('');
 }
 
 // ---- Bracket participant resolution ----
@@ -473,7 +518,7 @@ function setWinner(node, idx){
 }
 
 function slotRowHTML(node, idx, participant, editable, fmt){
-  const p = participant || {house:'Samurai', name:''};
+  const p = participant || {house:'', name:''};
   const winnerIdx = currentState.winners[node];
   const isWinner = winnerIdx===idx;
   const isLoser = winnerIdx!=null && winnerIdx!==idx;
@@ -552,7 +597,7 @@ function renderBracket(game){
 
   bindWinnerClicks();
   renderPodium(game);
-  requestAnimationFrame(fitToScreen);
+  requestAnimationFrame(layoutBracket);
 }
 
 function bindWinnerClicks(){
@@ -631,16 +676,54 @@ function renderBracketDownstreamOnly(game){
   });
   bindWinnerClicks();
   renderPodium(game);
-  requestAnimationFrame(fitToScreen);
+  requestAnimationFrame(layoutBracket);
 }
 
 let resizeTimer;
 window.addEventListener('resize', ()=>{
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(fitToScreen, 120);
+  resizeTimer = setTimeout(layoutBracket, 120);
 });
-window.addEventListener('beforeprint', fitToScreen);
-window.addEventListener('afterprint', fitToScreen);
+window.addEventListener('beforeprint', layoutBracket);
+window.addEventListener('afterprint', layoutBracket);
+
+// ---- Precisely center Semi/3rd-Place/Final boxes against their Round-1 parents ----
+// (ported from reference file; falls back to a plain fitToScreen on non-bracket views)
+function layoutBracket(){
+  const wrap = document.querySelector('.bracket-wrap');
+  if(!wrap){ fitToScreen(); return; }
+  const round1Body = content.querySelector('.col.round1 .col-body');
+  const semiBody = content.querySelector('.col.semicol .col-body');
+  const finalBody = content.querySelector('.col.col-final .col-body');
+  if(!round1Body || !semiBody || !finalBody){ fitToScreen(); return; }
+
+  const r1Rect = round1Body.getBoundingClientRect();
+  semiBody.style.height = r1Rect.height + 'px';
+  finalBody.style.height = r1Rect.height + 'px';
+
+  const m1 = content.querySelector('.match[data-match="m1"]').getBoundingClientRect();
+  const m2 = content.querySelector('.match[data-match="m2"]').getBoundingClientRect();
+  const m3 = content.querySelector('.match[data-match="m3"]').getBoundingClientRect();
+  const m4 = content.querySelector('.match[data-match="m4"]').getBoundingClientRect();
+
+  const semi1Y = ((m1.top + m1.height/2) + (m2.top + m2.height/2))/2 - r1Rect.top;
+  const semi2Y = ((m3.top + m3.height/2) + (m4.top + m4.height/2))/2 - r1Rect.top;
+  const midY = (semi1Y + semi2Y)/2;
+
+  placeBox('semi1', semi1Y, semiBody);
+  placeBox('semi2', semi2Y, semiBody);
+  placeBox('third', midY, semiBody);
+  placeBox('final', midY, finalBody);
+
+  fitToScreen();
+}
+function placeBox(node, centerY, bodyEl){
+  const el = bodyEl.querySelector(`.match[data-match="${node}"]`);
+  if(!el) return;
+  el.style.top = centerY + 'px';
+  el.style.transform = 'translateY(-50%)';
+  el.style.opacity = '1';
+}
 
 // ---- Scale the whole page content to fit the viewport with no scrolling ----
 function fitToScreen(){
@@ -654,6 +737,67 @@ function fitToScreen(){
   const contentW = wrap.scrollWidth;
   const scale = Math.min(1, availH/contentH, availW/contentW);
   wrap.style.transform = `scale(${scale})`;
+  drawBracketLines();
+}
+
+// ---- Connector line drawing (ported from reference file, same algorithm) ----
+function drawBracketLines(){
+  let svg = document.getElementById('bracketLinesOverlay');
+  if(!svg){
+    svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.id = 'bracketLinesOverlay';
+    document.body.appendChild(svg);
+  }
+  const bracketWrap = content.querySelector('.bracket-wrap');
+  if(!bracketWrap){ svg.innerHTML=''; return; }
+
+  const w = window.innerWidth, h = window.innerHeight;
+  svg.setAttribute('width', w);
+  svg.setAttribute('height', h);
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+
+  function boxEl(node){ return content.querySelector(`.match[data-match="${node}"]`); }
+  function pt(node, side){
+    const el = boxEl(node);
+    if(!el) return null;
+    const r = el.getBoundingClientRect();
+    return { x: side==='right' ? r.right : r.left, y: r.top + r.height/2 };
+  }
+  function elbow(p1,p2){
+    const midx = p1.x + (p2.x - p1.x)/2;
+    return `M ${p1.x} ${p1.y} H ${midx} V ${p2.y} H ${p2.x}`;
+  }
+  function line(fromNode,toNode,label){
+    const p1 = pt(fromNode,'right');
+    const p2 = pt(toNode,'left');
+    if(!p1||!p2) return '';
+    const midx = p1.x + (p2.x-p1.x)/2;
+    const below = p1.y > p2.y;
+    const ty = below ? p1.y + 15 : p1.y - 6;
+    return `<path d="${elbow(p1,p2)}"></path><text x="${midx}" y="${ty}" text-anchor="middle">${label}</text>`;
+  }
+  function stackLine(fromNode,toNode,label){
+    const elF = boxEl(fromNode), elT = boxEl(toNode);
+    if(!elF||!elT) return '';
+    const rF = elF.getBoundingClientRect(), rT = elT.getBoundingClientRect();
+    const above = rF.top < rT.top;
+    const x = (Math.max(rF.left,rT.left) + Math.min(rF.right,rT.right))/2;
+    const y1 = above ? rF.bottom : rF.top;
+    const y2 = above ? rT.top : rT.bottom;
+    const midY = (y1+y2)/2;
+    return `<path d="M ${x} ${y1} V ${y2}"></path><text x="${x+7}" y="${midY+4}" text-anchor="start">${label}</text>`;
+  }
+
+  let html = '';
+  html += line('m1','semi1','W1');
+  html += line('m2','semi1','W2');
+  html += line('m3','semi2','W3');
+  html += line('m4','semi2','W4');
+  html += stackLine('semi1','third','SL1');
+  html += stackLine('semi2','third','SL2');
+  html += line('semi1','final','SW1');
+  html += line('semi2','final','SW2');
+  svg.innerHTML = html;
 }
 
 function renderDart(game){
@@ -746,6 +890,92 @@ gameSelect.addEventListener('change', e=>{
 });
 
 printBtn.addEventListener('click', ()=>{ window.print(); });
+
+// ---- Export Results (Excel) — one sheet of Total Marks, one sheet of per-event placings ----
+async function exportResults(){
+  const prevLabel = exportBtn.textContent;
+  exportBtn.disabled = true;
+  exportBtn.textContent = 'Exporting…';
+  try{
+    await primeSummaryCache(); // make sure every game's saved state is loaded, not just visited ones
+
+    const summaryRows = [['Category','Game','1st Place','2nd Place','3rd Place']];
+    GAMES.forEach(g=>{
+      const state = gameStatesCache[g.id];
+      const pl = getPlacings(g, state);
+      let first = '', second = '', third = '';
+      if(g.type==='dart'){
+        first = pl.first || '';
+        second = pl.second || '';
+        third = pl.third || '';
+      }else if(state){
+        const fw = getWinner(state,'final');
+        const sw = getLoser(state,'final');
+        const tw = getWinner(state,'third');
+        first = fw ? (fw.house + (fw.name ? ' - '+fw.name : '')) : '';
+        second = sw ? (sw.house + (sw.name ? ' - '+sw.name : '')) : '';
+        third = tw ? (tw.house + (tw.name ? ' - '+tw.name : '')) : '';
+      }
+      summaryRows.push([g.cat, g.label, first, second, third]);
+    });
+
+    const totals = computeTotals();
+    const ranked = HOUSES.map(h=>({house:h, pts:totals[h]})).sort((a,b)=>b.pts-a.pts);
+    const totalsRows = [['Rank','House','Total Marks']];
+    ranked.forEach((r,i)=> totalsRows.push([i+1, r.house, r.pts]));
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(totalsRows), 'Total Marks');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryRows), 'Event Results');
+    XLSX.writeFile(wb, 'ICBT_Indoor_Games_2026_Results.xlsx');
+  }catch(e){
+    console.error('export failed', e);
+    alert('Export failed. Please try again.');
+  }finally{
+    exportBtn.disabled = false;
+    exportBtn.textContent = prevLabel;
+  }
+}
+exportBtn.addEventListener('click', exportResults);
+
+// ---- Reset This Game (current game only — every other game/doc is untouched) ----
+resetBtn.addEventListener('click', ()=>{
+  const game = GAMES.find(g=>g.id===currentGame);
+  resetGameName.textContent = game.label;
+  resetCode.value = '';
+  resetError.textContent = '';
+  resetModal.classList.add('show');
+  resetCode.focus();
+});
+function closeResetModal(){ resetModal.classList.remove('show'); }
+resetCancelBtn.addEventListener('click', closeResetModal);
+resetModal.addEventListener('click', e=>{ if(e.target===resetModal) closeResetModal(); });
+async function confirmReset(){
+  const code = resetCode.value.trim();
+  if(code !== ACCESS_CODE){
+    resetError.textContent = 'Incorrect access code.';
+    resetCode.value = '';
+    resetCode.focus();
+    return;
+  }
+  resetConfirmBtn.disabled = true;
+  const game = GAMES.find(g=>g.id===currentGame);
+  const freshState = game.type==='dart' ? defaultDartState(game) : defaultBracketState(game);
+  try{
+    await saveState(game, freshState);
+    currentState = freshState;
+    gameStatesCache[game.id] = freshState;
+    closeResetModal();
+    renderGame();
+  }catch(e){
+    console.error('reset failed', e);
+    resetError.textContent = 'Reset failed — please try again.';
+  }finally{
+    resetConfirmBtn.disabled = false;
+  }
+}
+resetConfirmBtn.addEventListener('click', confirmReset);
+resetCode.addEventListener('keydown', e=>{ if(e.key==='Enter') confirmReset(); });
 
 // ---- Login gate (name + shared access code — a lightweight staff gate, not real auth) ----
 const loginGate = document.getElementById('loginGate');
