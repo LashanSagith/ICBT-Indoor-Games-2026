@@ -82,6 +82,7 @@
   .btn{
     background:var(--panel2); border:1px solid var(--line); color:var(--text);
     padding:8px 14px; border-radius:6px; font-size:13px; cursor:pointer; font-weight:600;
+    text-decoration:none; display:inline-flex; align-items:center; gap:4px;
   }
   .btn:hover{border-color:var(--gold); color:var(--gold);}
   .btn.primary{background:var(--gold); color:#221600; border-color:var(--gold);}
@@ -102,7 +103,7 @@
   .col{display:flex; flex-direction:column; min-width:250px;}
   .col-title{font-size:12px; text-transform:uppercase; letter-spacing:2px; color:var(--gold); font-weight:700; text-align:center; margin-bottom:8px;}
   .col-body{position:relative;}
-  .col.round1 .col-body{display:flex; flex-direction:column; gap:12px;}
+  .col.round1 .col-body{display:flex; flex-direction:column; gap:20px;}
   .col:not(.round1) .col-body .match{position:absolute; left:0; right:0; opacity:0;}
 
   .match{
@@ -304,6 +305,7 @@
         <button class="btn primary" id="printBtn">🖨️ Print / Save as PDF</button>
         <button class="btn" id="exportBtn">📊 Export Results (Excel)</button>
         <button class="btn" id="resetBtn">♻️ Reset This Game</button>
+        <a class="btn" href="display.html" target="_blank" rel="noopener">📺 Open Projector Display</a>
         <span class="save-note" id="loggedInAs"></span>
       </div>
       <div id="printTitle">
@@ -762,6 +764,13 @@ window.addEventListener('afterprint', layoutBracket);
 function layoutBracket(){
   const wrap = document.querySelector('.bracket-wrap');
   if(!wrap){ fitToScreen(); return; }
+  // Measure and position everything with the zoom-to-fit transform temporarily
+  // off — see the matching comment in display.html's layoutBracket() for why:
+  // on any re-render after the first, #scaleWrap already carries the PREVIOUS
+  // transform, and measuring with getBoundingClientRect() while it's active
+  // double-applies the scale once fitToScreen() reapplies it below.
+  const scaleWrapEl = document.getElementById('scaleWrap');
+  if(scaleWrapEl) scaleWrapEl.style.transform = 'none';
   const round1Body = content.querySelector('.col.round1 .col-body');
   const semiBody = content.querySelector('.col.semicol .col-body');
   const finalBody = content.querySelector('.col.col-final .col-body');
@@ -854,8 +863,14 @@ function drawBracketLines(){
     const x = (Math.max(rF.left,rT.left) + Math.min(rF.right,rT.right))/2;
     const y1 = above ? rF.bottom : rF.top;
     const y2 = above ? rT.top : rT.bottom;
-    const midY = (y1+y2)/2;
-    return `<path d="M ${x} ${y1} V ${y2}"></path><text x="${x+7}" y="${midY+4}" text-anchor="start">${label}</text>`;
+    const gapTop = Math.min(y1,y2);
+    // The label's font stays a fixed real-pixel size (drawn outside the
+    // zoom-to-fit scale for crispness), but the gap it sits in shrinks with
+    // that zoom — so a fixed offset can overshoot a small gap at a small
+    // window size. Clamp it to the gap's own height instead.
+    const gapSize = Math.abs(y2 - y1);
+    const ty = gapTop + Math.max(4, Math.min(11, gapSize - 3));
+    return `<path d="M ${x} ${y1} V ${y2}"></path><text x="${x+7}" y="${ty}" text-anchor="start">${label}</text>`;
   }
 
   let html = '';

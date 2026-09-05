@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ICBT Indoor Games 2026 — Live Results</title>
+<style>
+  :root{
+    --bg:#0f1418;
+    --panel:#161d24;
+    --panel2:#1c242c;
+    --line:#2a343d;
+    --text:#e9edf1;
+    --muted:#8b98a3;
+    --gold:#ffd000;
+    --red:#ff0040;
+    --samurai:#c1272d;
+    --lions:#e8a33d;
+    --pirates:#1f9e89;
+    --titans:#00a2ff;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0; height:100%; overflow:hidden;}
+  body{
+    background:
+      radial-gradient(circle at 15% 0%, #1a2733 0%, transparent 45%),
+      radial-gradient(circle at 85% 100%, #1a1420 0%, transparent 45%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Segoe UI', Arial, sans-serif;
+    height:100vh;
+    display:flex; flex-direction:column;
+  }
+  header{
+    position:relative; z-index:1;
+    padding:14px 24px 12px;
+    text-align:center;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(232,163,61,.06), transparent);
+    flex-shrink:0;
+  }
+  .live-row{display:flex; align-items:center; justify-content:center; gap:14px; margin-bottom:4px;}
+  .live-badge{display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:800; letter-spacing:1.5px; color:#ff5252;}
+  .live-dot{width:7px; height:7px; border-radius:50%; background:#ff5252; animation:pulse 1.4s infinite;}
+  @keyframes pulse{0%{opacity:1}50%{opacity:.25}100%{opacity:1}}
+  .paused-badge{display:none; font-size:11px; font-weight:800; letter-spacing:1.5px; color:var(--gold);}
+  body.paused .paused-badge{display:inline-block;}
+  h1{margin:0; font-size:clamp(22px,3.2vw,32px); font-weight:800; letter-spacing:.5px;}
+  h1 span{color:var(--gold);}
+  .house-strip{
+    display:flex; justify-content:center; gap:0; margin-top:10px;
+    max-width:520px; margin-left:auto; margin-right:auto;
+    border-radius:6px; overflow:hidden; border:1px solid var(--line);
+  }
+  .house-strip div{flex:1; padding:6px 4px; font-size:12px; font-weight:700; text-align:center; letter-spacing:1px;}
+  .slide-info{font-size:13px; color:var(--muted); margin-top:10px; font-weight:600;}
+  .slide-info b{color:var(--text);}
+  .now-showing{
+    margin-top:10px;
+    text-align:center;
+  }
+  .ns-game{font-size:24px; font-weight:800; color:var(--text); letter-spacing:.2px;}
+  .ns-progress{font-size:14px; color:var(--muted); font-weight:600; margin-top:6px;}
+  .ns-progress b{color:var(--gold);}
+  .progress-bar-wrap{height:4px; background:var(--line); border-radius:2px; overflow:hidden; margin-top:10px; max-width:520px; margin-left:auto; margin-right:auto;}
+  .progress-bar{height:100%; width:0%; background:var(--muted);}
+  .progress-bar.animating{transition:width linear;}
+
+  main{position:relative; z-index:1; max-width:1400px; margin:0 auto; padding:30px 16px 20px; flex:1 1 auto; min-height:0; overflow:hidden; width:100%; display:flex; flex-direction:row; align-items:stretch; gap:14px;}
+  .sidebar{
+    width:220px; flex-shrink:0; background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:14px; overflow-y:auto; height:91.5%; display:flex; flex-direction:column;
+  }
+  .sidebar-title{font-size:13px; font-weight:800; letter-spacing:1px; color:var(--gold); text-transform:uppercase; margin-bottom:10px; text-align:center;}
+  .summary-row{
+    display:flex; align-items:center; gap:8px; padding:8px 8px; border-radius:8px;
+    background:var(--panel2); margin-bottom:8px; border:1px solid var(--line);
+  }
+  .summary-row:first-child{border-color:#e8c23d; box-shadow:0 0 0 1px rgba(232,194,61,.25) inset;}
+  .summary-rank{font-size:13px; font-weight:800; color:var(--muted); width:16px; text-align:center; flex-shrink:0;}
+  .summary-dot{width:10px; height:10px; border-radius:50%; flex-shrink:0;}
+  .summary-house{flex:1; font-size:13px; font-weight:700;}
+  .summary-pts{font-size:15px; font-weight:800; color:var(--gold);}
+  #contentArea{flex:1; min-width:0; height:100%; display:flex; align-items:flex-start; justify-content:center; overflow:hidden;}
+  #scaleWrap{width:100%; transform-origin:top center;}
+
+  .bracket-wrap{position:relative;}
+  #bracketLinesOverlay{position:fixed; inset:0; pointer-events:none; z-index:9999;}
+  #bracketLinesOverlay path{fill:none; stroke:#3a4650; stroke-width:2;}
+  #bracketLinesOverlay text{fill:var(--gold); font-size:10px; font-weight:700; font-family:inherit;}
+
+  .bracket{position:relative; z-index:1; display:flex; gap:60px; align-items:stretch; overflow-x:auto; padding-bottom:10px;}
+  .col{display:flex; flex-direction:column; min-width:250px;}
+  .col-title{font-size:12px; text-transform:uppercase; letter-spacing:2px; color:var(--gold); font-weight:700; text-align:center; margin-bottom:8px;}
+  .col-body{position:relative;}
+  .col.round1 .col-body{display:flex; flex-direction:column; gap:20px;}
+  .col:not(.round1) .col-body .match{position:absolute; left:0; right:0; opacity:0;}
+
+  .match{
+    background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden;
+    box-shadow:0 2px 10px rgba(0,0,0,.25); position:relative;
+  }
+  .match-head{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:6px 10px; background:var(--panel2); font-size:11px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:1px; font-weight:700;
+  }
+  .match-head .fmt{color:var(--gold);}
+  .slot{
+    display:flex; align-items:center; gap:8px; padding:7px 10px;
+    border-top:1px solid var(--line); cursor:default;
+  }
+  .slot.winner{background:rgba(232,163,61,.12);}
+  .slot.loser{opacity:.4;}
+  .win-radio{
+    width:16px; height:16px; border-radius:4px; border:2px solid var(--muted);
+    flex-shrink:0; position:relative;
+  }
+  .win-radio.checked{background:var(--gold); border-color:var(--gold);}
+  .win-radio.checked::after{
+    content:"✓"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:900; color:#221600; line-height:1;
+  }
+  .house-dot{width:9px; height:9px; border-radius:50%; flex-shrink:0;}
+  .win-mark{width:16px; text-align:center; font-size:14px; color:var(--gold); opacity:0; flex-shrink:0;}
+  .slot.winner .win-mark{opacity:1;}
+
+  .podium{display:flex; gap:14px; margin-top:18px; flex-wrap:wrap;}
+  .podium-card{
+    flex:1; min-width:180px; background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:12px 16px; display:flex; align-items:center; gap:12px; border-top:3px solid var(--line);
+  }
+  .podium-card .rank-num{font-size:24px; font-weight:800; width:38px; text-align:center; flex-shrink:0;}
+  .podium-card .rank-info{flex:1; min-width:0;}
+  .podium-card .rank-info .rank-label{font-size:11px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); font-weight:700;}
+  .podium-card .rank-info .rank-team{font-size:15px; font-weight:700; margin-top:2px;}
+  .podium-card .rank-info .rank-house{font-size:12px; color:var(--muted); margin-top:1px;}
+  .marks-badge{
+    flex-shrink:0; text-align:center; min-width:46px; padding:5px 8px; border-radius:8px;
+    background:rgba(232,163,61,.14); border:1px solid rgba(232,163,61,.35);
+    visibility:hidden;
+  }
+  .marks-badge.show{visibility:visible;}
+  .marks-badge .mb-label{display:block; font-size:9px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); font-weight:700; margin-bottom:2px;}
+  .marks-badge .mb-val{font-size:15px; font-weight:800; color:var(--gold);}
+  .podium-card.gold{border-top-color:#e8c23d;}
+  .podium-card.gold .rank-num{color:#e8c23d;}
+  .podium-card.silver{border-top-color:#c9d3da;}
+  .podium-card.silver .rank-num{color:#c9d3da;}
+  .podium-card.bronze{border-top-color:#c98a4b;}
+  .podium-card.bronze .rank-num{color:#c98a4b;}
+
+  .dart-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px;}
+  .house-card{background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden;}
+  .house-card .hcard-head{padding:10px 12px; font-weight:800; letter-spacing:1px; font-size:13px; text-align:center; color:#0f1418;}
+  .dart-row{display:flex; align-items:center; gap:6px; padding:6px 10px; border-top:1px solid var(--line); font-size:13px;}
+  .dart-row .dart-name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text);}
+  .dart-row .dart-name.empty{color:var(--muted); font-style:italic;}
+  .dart-row .dart-score{width:30px; text-align:center; color:var(--muted);}
+  .dart-sum{width:34px; text-align:center; font-size:13px; color:var(--gold); font-weight:700;}
+  .dart-total{
+    display:flex; justify-content:space-between; padding:9px 12px; font-weight:800; font-size:14px;
+    background:var(--panel2); border-top:1px solid var(--line); letter-spacing:1px;
+  }
+
+  footer{text-align:center; color:var(--muted); font-size:11px; padding:10px; border-top:1px solid var(--line); flex-shrink:0;}
+  ::-webkit-scrollbar{height:8px; width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--line); border-radius:4px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="live-row">
+    <span class="live-badge"><span class="live-dot"></span> LIVE</span>
+    <span class="paused-badge" id="pausedBadge">⏸ PAUSED — press space to resume</span>
+  </div>
+  <h1>ICBT Indoor Games 2026<span> Live Results</span></h1>
+  <div class="house-strip">
+    <div style="background:var(--samurai)">SAMURAI</div>
+    <div style="background:var(--lions); color:#2b1c00">LIONS</div>
+    <div style="background:var(--pirates)">PIRATES</div>
+    <div style="background:var(--titans)">TITANS</div>
+  </div>
+</header>
+<div class="now-showing">
+    <div class="ns-game" id="nsGame"></div>
+    <div class="ns-progress" id="nsProgress"></div>
+    <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+  </div>
+<main>
+  <aside class="sidebar">
+    <div class="sidebar-title">🏆 Total Marks</div>
+    <div id="summaryList"></div>
+  </aside>
+  <div id="contentArea">
+    <div id="scaleWrap">
+      <div id="content">
+    </div>
+  </div>
+</main>
+<footer>ICBT Staff Indoor Games © 2026 ICBT. All Rights Reserved. · Updates Live ·</footer>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script>
+// ====================================================================
+// FIREBASE CONFIG — same project as the admin page, read-only usage here
+// ====================================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyAjOt0bAOKIyH8DJDgpLmZW9yYVAL1pOyk",
+  authDomain: "icbt-indoor-games-2026.firebaseapp.com",
+  projectId: "icbt-indoor-games-2026",
+  storageBucket: "icbt-indoor-games-2026.firebasestorage.app",
+  messagingSenderId: "81777985539",
+  appId: "1:81777985539:web:ba8031c0c4523bc1552636"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+// ====================================================================
+
+const HOUSES = ['Samurai','Lions','Pirates','Titans'];
+const HOUSE_COLOR = {Samurai:'var(--samurai)', Lions:'var(--lions)', Pirates:'var(--pirates)', Titans:'var(--titans)'};
+const HOUSE_TEXT = {Samurai:'#fff', Lions:'#2b1c00', Pirates:'#fff', Titans:'#fff'};
+
+function slots8(names){
+  return names.map(n=>({house:'', name:n}));
+}
+const BLANK8 = ['','','','','','','',''];
+
+const GAMES = [
+  {id:'pool_men_s', cat:'Pool', label:'Pool — Men (Single)', type:'bracket', slots:slots8(BLANK8)},
+  {id:'pool_men_d', cat:'Pool', label:'Pool — Men (Double)', type:'bracket', slots:slots8(BLANK8)},
+
+  {id:'caram_men_s', cat:'Caram', label:'Caram — Men (Single)', type:'bracket', slots:slots8(BLANK8)},
+  {id:'caram_men_d', cat:'Caram', label:'Caram — Men (Double)', type:'bracket', slots:slots8(BLANK8)},
+  {id:'caram_fem_s', cat:'Caram', label:'Caram — Female (Single)', type:'bracket', slots:slots8(BLANK8)},
+  {id:'caram_fem_d', cat:'Caram', label:'Caram — Female (Double)', type:'bracket', slots:slots8(BLANK8)},
+  {id:'caram_mix_d', cat:'Caram', label:'Caram — Mix (Double)', type:'bracket', slots:slots8(BLANK8)},
+
+  {id:'omi_men_d', cat:'Omi', label:'Omi — Men (Double)', type:'bracket', slots:slots8(BLANK8)},
+  {id:'omi_fem_d', cat:'Omi', label:'Omi — Female (Double)', type:'bracket', slots:slots8(BLANK8)},
+  {id:'omi_mix_d', cat:'Omi', label:'Omi — Mix (Double)', type:'bracket', slots:slots8(BLANK8)},
+
+  {id:'tt_men_s', cat:'Table Tennis', label:'Table Tennis — Men (Single)', type:'bracket', slots:slots8(BLANK8)},
+  {id:'tt_fem_s', cat:'Table Tennis', label:'Table Tennis — Female (Single)', type:'bracket', slots:slots8(BLANK8)},
+  {id:'tt_men_d', cat:'Table Tennis', label:'Table Tennis — Men (Double)', type:'bracket', slots:slots8(BLANK8)},
+  {id:'tt_fem_d', cat:'Table Tennis', label:'Table Tennis — Female (Double)', type:'bracket', slots:slots8(BLANK8)},
+  {id:'tt_mix_d', cat:'Table Tennis', label:'Table Tennis — Mix (Double)', type:'bracket', slots:slots8(BLANK8)},
+
+  {id:'chess_men', cat:'Chess', label:'Chess — Men', type:'bracket', slots:slots8(BLANK8)},
+  {id:'chess_fem', cat:'Chess', label:'Chess — Female', type:'bracket', slots:slots8(BLANK8)},
+
+  {id:'daam_men', cat:'Daam', label:'Daam — Men', type:'bracket', slots:slots8(BLANK8)},
+  {id:'daam_fem', cat:'Daam', label:'Daam — Female', type:'bracket', slots:slots8(BLANK8)},
+
+  {id:'dart', cat:'Dart', label:'Dart — Points Board', type:'dart',
+    houses:{ Samurai:BLANK8.slice(), Lions:BLANK8.slice(), Pirates:BLANK8.slice(), Titans:BLANK8.slice() }}
+];
+
+const content = document.getElementById('content');
+const nsGame = document.getElementById('nsGame');
+const nsProgress = document.getElementById('nsProgress');
+const progressBar = document.getElementById('progressBar');
+const pausedBadge = document.getElementById('pausedBadge');
+
+const FIXED_MARKS = {first:50, second:30, third:15};
+
+function defaultBracketState(game){
+  return {
+    slots: game.slots.map(s=>({...s})),
+    winners: {m1:null,m2:null,m3:null,m4:null,semi1:null,semi2:null,third:null,final:null}
+  };
+}
+function defaultDartState(game){
+  const houses = {};
+  Object.keys(game.houses).forEach(h=>{
+    houses[h] = game.houses[h].map(n=>({name:n, scores:[0,0,0]}));
+  });
+  return {houses};
+}
+
+let currentGame = GAMES[0].id;
+let currentState = null;
+const gameStatesCache = {};
+
+// ---- Live sync: one onSnapshot listener per game, running for the whole
+// session, so any change made on the admin page reaches this projector
+// display within moments — no refresh needed. ----
+const gameListeners = {};
+const gameReady = {};
+
+function attachGameListener(game){
+  if(gameListeners[game.id]) return gameReady[game.id];
+  gameReady[game.id] = new Promise(resolve=>{
+    let loaded = false;
+    gameListeners[game.id] = db.collection('draws').doc(game.id).onSnapshot(snap=>{
+      let state = null;
+      if(snap.exists && snap.data().state){
+        try{ state = JSON.parse(snap.data().state); }catch(e){ state = null; }
+      }
+      if(!state) state = game.type==='dart' ? defaultDartState(game) : defaultBracketState(game);
+
+      if(!loaded){
+        loaded = true;
+        gameStatesCache[game.id] = state;
+        resolve();
+        if(game.id === currentGame){ currentState = state; renderCurrentSlide(); }
+        renderSummary();
+        return;
+      }
+      const incomingJSON = JSON.stringify(state);
+      if(incomingJSON === JSON.stringify(gameStatesCache[game.id])) return; // no real change
+      gameStatesCache[game.id] = state;
+      if(game.id === currentGame){
+        currentState = state;
+        renderCurrentSlide();
+      }
+      renderSummary();
+    }, err=>{
+      console.error('Live update failed for', game.id, err);
+      resolve();
+    });
+  });
+  return gameReady[game.id];
+}
+
+// ---- Bracket participant resolution ----
+function getParticipant(state, node, idx){
+  const roundMap = {m1:0,m2:1,m3:2,m4:3};
+  if(node in roundMap){
+    const base = roundMap[node]*2;
+    return state.slots[base+idx];
+  }
+  if(node==='semi1') return idx===0 ? getWinner(state,'m1') : getWinner(state,'m2');
+  if(node==='semi2') return idx===0 ? getWinner(state,'m3') : getWinner(state,'m4');
+  if(node==='third') return idx===0 ? getLoser(state,'semi1') : getLoser(state,'semi2');
+  if(node==='final') return idx===0 ? getWinner(state,'semi1') : getWinner(state,'semi2');
+  return null;
+}
+function getWinner(state,node){
+  const w = state.winners[node];
+  if(w===null || w===undefined) return null;
+  return getParticipant(state,node,w);
+}
+function getLoser(state,node){
+  const w = state.winners[node];
+  if(w===null || w===undefined) return null;
+  return getParticipant(state,node,1-w);
+}
+
+// ---- Placings + total marks summary (left sidebar) ----
+function getPlacings(game, state){
+  if(!state) return {first:null, second:null, third:null};
+  if(game.type==='dart'){
+    const total = h => state.houses[h].reduce((s,p)=>s + p.scores.reduce((a,b)=>a+(Number(b)||0),0), 0);
+    const ranked = HOUSES.map(h=>({house:h, pts: total(h)})).sort((a,b)=>b.pts-a.pts);
+    if(ranked.every(r=>r.pts===0)) return {first:null, second:null, third:null};
+    return {first: ranked[0]?.house || null, second: ranked[1]?.house || null, third: ranked[2]?.house || null};
+  }
+  const first = getWinner(state,'final');
+  const second = getLoser(state,'final');
+  const third = getWinner(state,'third');
+  return {first: first?.house || null, second: second?.house || null, third: third?.house || null};
+}
+function computeTotals(){
+  const totals = {Samurai:0, Lions:0, Pirates:0, Titans:0};
+  GAMES.forEach(g=>{
+    const state = gameStatesCache[g.id];
+    if(!state) return;
+    const pl = getPlacings(g, state);
+    if(pl.first && totals[pl.first]!=null) totals[pl.first] += FIXED_MARKS.first;
+    if(pl.second && totals[pl.second]!=null) totals[pl.second] += FIXED_MARKS.second;
+    if(pl.third && totals[pl.third]!=null) totals[pl.third] += FIXED_MARKS.third;
+  });
+  return totals;
+}
+function renderSummary(){
+  const el = document.getElementById('summaryList');
+  if(!el) return;
+  const totals = computeTotals();
+  const ranked = HOUSES.map(h=>({house:h, pts:totals[h]})).sort((a,b)=>b.pts-a.pts);
+  el.innerHTML = ranked.map((r,i)=>`
+    <div class="summary-row">
+      <span class="summary-rank">${i+1}</span>
+      <span class="summary-dot" style="background:${HOUSE_COLOR[r.house]}"></span>
+      <span class="summary-house">${r.house}</span>
+      <span class="summary-pts">${r.pts}</span>
+    </div>`).join('');
+}
+
+// ---- Read-only bracket rendering (same look as the admin page's locked columns) ----
+function slotRowHTML(node, idx, participant){
+  const p = participant || {house:'', name:''};
+  const winnerIdx = currentState.winners[node];
+  const isWinner = winnerIdx===idx;
+  const isLoser = winnerIdx!=null && winnerIdx!==idx;
+  const inner = `<span class="win-radio ${isWinner?'checked':''}"></span>
+      <span class="house-dot" style="background:${participant?HOUSE_COLOR[participant.house]:'#333'}"></span>
+      <span style="flex:1; font-size:13px; ${participant? '':'color:var(--muted)'}">${participant ? (participant.house + (participant.name? ' · '+participant.name:'')) : 'TBD'}</span>`;
+  return `<div class="slot ${isWinner?'winner':''} ${isLoser?'loser':''}">
+      ${inner}
+      <span class="win-mark">🏆</span>
+    </div>`;
+}
+function matchCardHTML(node, title, fmt){
+  const pA = getParticipant(currentState, node, 0);
+  const pB = getParticipant(currentState, node, 1);
+  return `<div class="match" data-match="${node}">
+    <div class="match-head"><span>${title}</span><span class="fmt">${fmt}</span></div>
+    ${slotRowHTML(node,0,pA)}
+    ${slotRowHTML(node,1,pB)}
+  </div>`;
+}
+function podiumCardHTML(rankNum, cls, label, teamName, subLabel, markKey, won){
+  const val = FIXED_MARKS[markKey];
+  if(won===undefined) won = !!teamName;
+  return `
+    <div class="podium-card ${cls}">
+      <div class="rank-num">${rankNum}</div>
+      <div class="rank-info">
+        <div class="rank-label">${label}</div>
+        <div class="rank-team">${teamName || 'TBD'}</div>
+        <div class="rank-house">${subLabel || ''}</div>
+      </div>
+      <div class="marks-badge ${won?'show':''}">
+        <span class="mb-label">Marks</span>
+        <span class="mb-val">+${val}</span>
+      </div>
+    </div>`;
+}
+function renderPodium(){
+  const podium = document.getElementById('podium');
+  if(!podium) return;
+  const first = getWinner(currentState,'final');
+  const second = getLoser(currentState,'final');
+  const third = getWinner(currentState,'third');
+  podium.innerHTML =
+    podiumCardHTML('1st','gold','Champion', first?.house, first?.name, 'first') +
+    podiumCardHTML('2nd','silver','Runner-up', second?.house, second?.name, 'second') +
+    podiumCardHTML('3rd','bronze','3rd Place', third?.house, third?.name, 'third');
+}
+function renderBracket(game){
+  document.title = `ICBT Indoor Games 2026 — ${game.label}`;
+  content.innerHTML = `
+    <div class="bracket-wrap">
+      <div class="bracket">
+        <div class="col round1">
+          <div class="col-title">Round 1</div>
+          <div class="col-body">
+            ${matchCardHTML('m1','Match 01','Knockout')}
+            ${matchCardHTML('m2','Match 02','Knockout')}
+            ${matchCardHTML('m3','Match 03','Knockout')}
+            ${matchCardHTML('m4','Match 04','Knockout')}
+          </div>
+        </div>
+        <div class="col semicol">
+          <div class="col-title">Semis &amp; 3rd Place</div>
+          <div class="col-body">
+            ${matchCardHTML('semi1','Semi Final 1','Knockout')}
+            ${matchCardHTML('third','3rd Place','Best of 03')}
+            ${matchCardHTML('semi2','Semi Final 2','Knockout')}
+          </div>
+        </div>
+        <div class="col col-final">
+          <div class="col-title">Final</div>
+          <div class="col-body">
+            ${matchCardHTML('final','Final','Best of 03')}
+          </div>
+        </div>
+      </div>
+      <div class="podium" id="podium"></div>
+    </div>
+  `;
+  renderPodium();
+  requestAnimationFrame(layoutBracket);
+}
+
+function renderDart(game){
+  document.title = `ICBT Indoor Games 2026 — ${game.label}`;
+  const total = h => currentState.houses[h].reduce((sum,p)=>sum + p.scores.reduce((a,b)=>a+(Number(b)||0),0), 0);
+  content.innerHTML = `<div class="dart-grid">
+    ${HOUSES.map(h=>`
+      <div class="house-card">
+        <div class="hcard-head" style="background:${HOUSE_COLOR[h]}; color:${HOUSE_TEXT[h]}">${h.toUpperCase()}</div>
+        ${currentState.houses[h].map((p)=>`
+          <div class="dart-row">
+            <span class="dart-name ${p.name? '':'empty'}">${(p.name||'').replace(/</g,'&lt;') || 'Player Name'}</span>
+            ${p.scores.map(s=>`<span class="dart-score">${s||0}</span>`).join('')}
+            <span class="dart-sum">${p.scores.reduce((a,b)=>a+(Number(b)||0),0)}</span>
+          </div>`).join('')}
+        <div class="dart-total"><span>Total Points</span><span>${total(h)}</span></div>
+      </div>
+    `).join('')}
+  </div>
+  <div class="podium" id="dartPodium"></div>`;
+
+  const podium = content.querySelector('#dartPodium');
+  const ranked = HOUSES.map(h=>({house:h, pts: total(h)})).sort((a,b)=>b.pts-a.pts);
+  const medal = ['gold','silver','bronze'];
+  const rankLabel = ['1st','2nd','3rd'];
+  const nameLabel = ['1st Place','2nd Place','3rd Place'];
+  const markKeys = ['first','second','third'];
+  podium.innerHTML = ranked.slice(0,3).map((r,i)=>
+    podiumCardHTML(rankLabel[i], medal[i], nameLabel[i], r.house, r.pts+' pts', markKeys[i], r.pts>0)
+  ).join('');
+  requestAnimationFrame(fitToScreen);
+}
+
+// ---- Precisely center Semi/3rd-Place/Final boxes against their Round-1 parents ----
+function layoutBracket(){
+  const wrap = document.querySelector('.bracket-wrap');
+  if(!wrap){ fitToScreen(); return; }
+  // Measure and position everything with the zoom-to-fit transform temporarily
+  // off. On the very first render there's no transform yet, so this is a
+  // no-op — but this slideshow calls layoutBracket() again every time the
+  // slide changes (and once more when live data arrives), and by then
+  // #scaleWrap already carries the PREVIOUS transform. getBoundingClientRect()
+  // would return post-transform pixels, and setting el.style.top with those
+  // numbers double-applies the scale once fitToScreen() (below) reapplies
+  // it — which is what was pushing semi1/3rd-place/semi2 into overlapping
+  // each other. Doing the measurement in true local (untransformed) units,
+  // then letting fitToScreen() compute the zoom fresh afterward, avoids that.
+  const scaleWrapEl = document.getElementById('scaleWrap');
+  if(scaleWrapEl) scaleWrapEl.style.transform = 'none';
+  const round1Body = content.querySelector('.col.round1 .col-body');
+  const semiBody = content.querySelector('.col.semicol .col-body');
+  const finalBody = content.querySelector('.col.col-final .col-body');
+  if(!round1Body || !semiBody || !finalBody){ fitToScreen(); return; }
+
+  const r1Rect = round1Body.getBoundingClientRect();
+  semiBody.style.height = r1Rect.height + 'px';
+  finalBody.style.height = r1Rect.height + 'px';
+
+  const m1 = content.querySelector('.match[data-match="m1"]').getBoundingClientRect();
+  const m2 = content.querySelector('.match[data-match="m2"]').getBoundingClientRect();
+  const m3 = content.querySelector('.match[data-match="m3"]').getBoundingClientRect();
+  const m4 = content.querySelector('.match[data-match="m4"]').getBoundingClientRect();
+
+  const semi1Y = ((m1.top + m1.height/2) + (m2.top + m2.height/2))/2 - r1Rect.top;
+  const semi2Y = ((m3.top + m3.height/2) + (m4.top + m4.height/2))/2 - r1Rect.top;
+  const midY = (semi1Y + semi2Y)/2;
+
+  placeBox('semi1', semi1Y, semiBody);
+  placeBox('semi2', semi2Y, semiBody);
+  placeBox('third', midY, semiBody);
+  placeBox('final', midY, finalBody);
+
+  fitToScreen();
+}
+function placeBox(node, centerY, bodyEl){
+  const el = bodyEl.querySelector(`.match[data-match="${node}"]`);
+  if(!el) return;
+  el.style.top = centerY + 'px';
+  el.style.transform = 'translateY(-50%)';
+  el.style.opacity = '1';
+}
+
+// ---- Scale the whole page content to fit the viewport with no scrolling ----
+function fitToScreen(){
+  const wrap = document.getElementById('scaleWrap');
+  const mainEl = document.getElementById('contentArea');
+  if(!wrap || !mainEl) return;
+  wrap.style.transform = 'none';
+  const availH = mainEl.clientHeight;
+  const availW = mainEl.clientWidth;
+  const contentH = wrap.scrollHeight;
+  const contentW = wrap.scrollWidth;
+  const scale = Math.min(1, availH/contentH, availW/contentW);
+  wrap.style.transform = `scale(${scale})`;
+  drawBracketLines();
+}
+
+// ---- Connector line drawing ----
+function drawBracketLines(){
+  let svg = document.getElementById('bracketLinesOverlay');
+  if(!svg){
+    svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.id = 'bracketLinesOverlay';
+    document.body.appendChild(svg);
+  }
+  const bracketWrap = content.querySelector('.bracket-wrap');
+  if(!bracketWrap){ svg.innerHTML=''; return; }
+
+  const w = window.innerWidth, h = window.innerHeight;
+  svg.setAttribute('width', w);
+  svg.setAttribute('height', h);
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+
+  function boxEl(node){ return content.querySelector(`.match[data-match="${node}"]`); }
+  function pt(node, side){
+    const el = boxEl(node);
+    if(!el) return null;
+    const r = el.getBoundingClientRect();
+    return { x: side==='right' ? r.right : r.left, y: r.top + r.height/2 };
+  }
+  function elbow(p1,p2){
+    const midx = p1.x + (p2.x - p1.x)/2;
+    return `M ${p1.x} ${p1.y} H ${midx} V ${p2.y} H ${p2.x}`;
+  }
+  function line(fromNode,toNode,label){
+    const p1 = pt(fromNode,'right');
+    const p2 = pt(toNode,'left');
+    if(!p1||!p2) return '';
+    const midx = p1.x + (p2.x-p1.x)/2;
+    const below = p1.y > p2.y;
+    const ty = below ? p1.y + 15 : p1.y - 6;
+    return `<path d="${elbow(p1,p2)}"></path><text x="${midx}" y="${ty}" text-anchor="middle">${label}</text>`;
+  }
+  function stackLine(fromNode,toNode,label){
+    const elF = boxEl(fromNode), elT = boxEl(toNode);
+    if(!elF||!elT) return '';
+    const rF = elF.getBoundingClientRect(), rT = elT.getBoundingClientRect();
+    const above = rF.top < rT.top;
+    const x = (Math.max(rF.left,rT.left) + Math.min(rF.right,rT.right))/2;
+    const y1 = above ? rF.bottom : rF.top;
+    const y2 = above ? rT.top : rT.bottom;
+    const gapTop = Math.min(y1,y2);
+    // The label's font stays a fixed real-pixel size (drawn outside the
+    // zoom-to-fit scale for crispness), but the gap it sits in shrinks with
+    // that zoom — so a fixed offset can overshoot a small gap at a small
+    // window size. Clamp it to the gap's own height instead.
+    const gapSize = Math.abs(y2 - y1);
+    const ty = gapTop + Math.max(4, Math.min(11, gapSize - 3));
+    return `<path d="M ${x} ${y1} V ${y2}"></path><text x="${x+7}" y="${ty}" text-anchor="start">${label}</text>`;
+  }
+
+  let html = '';
+  html += line('m1','semi1','W1');
+  html += line('m2','semi1','W2');
+  html += line('m3','semi2','W3');
+  html += line('m4','semi2','W4');
+  html += stackLine('semi1','third','SL1');
+  html += stackLine('semi2','third','SL2');
+  html += line('semi1','final','SW1');
+  html += line('semi2','final','SW2');
+  svg.innerHTML = html;
+}
+
+let resizeTimer;
+window.addEventListener('resize', ()=>{
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(layoutBracket, 120);
+});
+
+function renderCurrentSlide(){
+  const game = GAMES.find(g=>g.id===currentGame);
+  if(game.type==='dart') renderDart(game); else renderBracket(game);
+}
+
+// ---- Slideshow: cycle through every game, looping back to the start ----
+const SLIDE_SECONDS = 12;
+let slideIndex = 0;
+let paused = false;
+let advanceTimer = null;
+
+async function goToSlide(i){
+  slideIndex = ((i % GAMES.length) + GAMES.length) % GAMES.length;
+  const game = GAMES[slideIndex];
+  currentGame = game.id;
+  nsGame.textContent = game.label;
+  nsProgress.innerHTML = `Game <b>${slideIndex+1}</b> of ${GAMES.length}`;
+  if(!(game.id in gameStatesCache)){
+    content.innerHTML = '<div style="text-align:center; color:var(--muted); padding:40px;">Loading draw…</div>';
+    await gameReady[game.id];
+  }
+  currentState = gameStatesCache[game.id];
+  renderCurrentSlide();
+  restartProgressBar();
+}
+
+function restartProgressBar(){
+  progressBar.classList.remove('animating');
+  progressBar.style.transition = 'none';
+  progressBar.style.width = '0%';
+  if(paused) return;
+  // Force reflow so the 0% reset is committed (with no transition) before
+  // we start the new animation — otherwise the leftover transition from
+  // the previous slide animates this reset too, and the bar looks stuck.
+  void progressBar.offsetWidth;
+  progressBar.classList.add('animating');
+  progressBar.style.transition = `width ${SLIDE_SECONDS}s linear`;
+  progressBar.style.width = '100%';
+}
+
+function scheduleAdvance(){
+  clearTimeout(advanceTimer);
+  if(paused) return;
+  advanceTimer = setTimeout(()=>{ goToSlide(slideIndex+1); scheduleAdvance(); }, SLIDE_SECONDS*1000);
+}
+
+function setPaused(v){
+  paused = v;
+  document.body.classList.toggle('paused', paused);
+  if(paused){
+    clearTimeout(advanceTimer);
+    progressBar.classList.remove('animating');
+  }else{
+    restartProgressBar();
+    scheduleAdvance();
+  }
+}
+
+window.addEventListener('keydown', e=>{
+  if(e.key==='ArrowRight'){ goToSlide(slideIndex+1); scheduleAdvance(); }
+  else if(e.key==='ArrowLeft'){ goToSlide(slideIndex-1); scheduleAdvance(); }
+  else if(e.code==='Space'){ e.preventDefault(); setPaused(!paused); }
+});
+
+(async function start(){
+  // Attach a live listener to every game up front — the sidebar needs all of
+  // them anyway, and it means the first slide has no loading flicker.
+  await Promise.all(GAMES.map(g=>attachGameListener(g)));
+  renderSummary();
+  await goToSlide(0);
+  scheduleAdvance();
+})();
+</script>
+</body>
+</html>
