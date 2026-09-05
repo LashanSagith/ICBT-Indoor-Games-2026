@@ -976,7 +976,7 @@ async function exportResults(){
   try{
     await primeSummaryCache(); // make sure every game's saved state is loaded, not just visited ones
 
-    const summaryRows = [['Category','Game','1st Place','2nd Place','3rd Place']];
+        const summaryRows = [['Category','Game','1st Place','1st Marks','2nd Place','2nd Marks','3rd Place','3rd Marks']];
     GAMES.forEach(g=>{
       const state = gameStatesCache[g.id];
       const pl = getPlacings(g, state);
@@ -993,9 +993,14 @@ async function exportResults(){
         second = sw ? (sw.house + (sw.name ? ' - '+sw.name : '')) : '';
         third = tw ? (tw.house + (tw.name ? ' - '+tw.name : '')) : '';
       }
-      summaryRows.push([g.cat, g.label, first, second, third]);
+      summaryRows.push([
+        g.cat, g.label,
+        first, first ? FIXED_MARKS.first : '',
+        second, second ? FIXED_MARKS.second : '',
+        third, third ? FIXED_MARKS.third : ''
+      ]);
     });
-
+    
     const totals = computeTotals();
     const ranked = HOUSES.map(h=>({house:h, pts:totals[h]})).sort((a,b)=>b.pts-a.pts);
     const totalsRows = [['Rank','House','Total Marks']];
