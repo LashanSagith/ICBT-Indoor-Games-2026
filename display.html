@@ -47,12 +47,25 @@
   body.paused .paused-badge{display:inline-block;}
   h1{margin:0; font-size:clamp(22px,3.2vw,32px); font-weight:800; letter-spacing:.5px;}
   h1 span{color:var(--gold);}
+  .strip-caption{font-size:10px; font-weight:800; letter-spacing:2px; color:var(--muted); margin-top:8px; text-transform:uppercase;}
   .house-strip{
-    display:flex; justify-content:center; gap:0; margin-top:10px;
-    max-width:520px; margin-left:auto; margin-right:auto;
-    border-radius:6px; overflow:hidden; border:1px solid var(--line);
+    display:flex; justify-content:center; gap:8px; margin-top:6px;
+    max-width:760px; margin-left:auto; margin-right:auto; position:relative;
   }
-  .house-strip div{flex:1; padding:6px 4px; font-size:12px; font-weight:700; text-align:center; letter-spacing:1px;}
+  .hs-item{
+    flex:1; position:relative; padding:6px 8px 7px; border-radius:8px; text-align:center;
+    display:flex; flex-direction:column; align-items:center; gap:1px;
+    border:1px solid rgba(255,255,255,.12); will-change:transform;
+  }
+  .hs-item{text-shadow:0 1px 2px rgba(0,0,0,.35);}
+  .hs-item.leader{box-shadow:0 0 0 2px var(--gold), 0 0 14px rgba(255,208,0,.35);}
+  .hs-top{display:flex; align-items:center; gap:6px; font-size:12px; font-weight:800; letter-spacing:1.5px;}
+  .hs-rank{
+    display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%;
+    background:rgba(0,0,0,.28); font-size:11px; font-weight:800; letter-spacing:0;
+  }
+  .hs-total{font-size:clamp(20px,2.4vw,28px); font-weight:900; line-height:1.1; font-variant-numeric:tabular-nums;}
+  .hs-sub{font-size:10px; font-weight:700; opacity:.8; letter-spacing:.5px;}
   .slide-info{font-size:13px; color:var(--muted); margin-top:10px; font-weight:600;}
   .slide-info b{color:var(--text);}
   .now-showing{
@@ -176,12 +189,8 @@
     <span class="paused-badge" id="pausedBadge">⏸ PAUSED — press space to resume</span>
   </div>
   <h1>ICBT Indoor Games 2026<span> Live Results</span></h1>
-  <div class="house-strip">
-    <div style="background:var(--samurai)">SAMURAI</div>
-    <div style="background:var(--lions); color:#2b1c00">LIONS</div>
-    <div style="background:var(--pirates)">PIRATES</div>
-    <div style="background:var(--titans)">TITANS</div>
-  </div>
+  <div class="strip-caption">House Championship · Year Total</div>
+  <div class="house-strip" id="houseStrip"></div>
 </header>
 <div class="now-showing">
     <div class="ns-game" id="nsGame"></div>
@@ -190,7 +199,7 @@
   </div>
 <main>
   <aside class="sidebar">
-    <div class="sidebar-title">🏆 Total Marks</div>
+    <div class="sidebar-title">🏆 Indoor Marks</div>
     <div id="summaryList"></div>
   </aside>
   <div id="contentArea">
@@ -265,6 +274,13 @@ const progressBar = document.getElementById('progressBar');
 const pausedBadge = document.getElementById('pausedBadge');
 
 const FIXED_MARKS = {first:50, second:30, third:15};
+
+// ====================================================================
+// YEAR TOTAL — marks already earned from the events held so far this year.
+// The header shows: BASE_MARKS + live Indoor Games marks.
+// Edit these numbers whenever the earlier-events totals change.
+// ====================================================================
+const BASE_MARKS = {Titans:1151, Samurai:1330, Lions:1236, Pirates:1531};
 
 function defaultBracketState(game){
   return {
@@ -376,9 +392,13 @@ function computeTotals(){
   return totals;
 }
 function renderSummary(){
+  const totals = computeTotals();
+  renderSidebar(totals);
+  renderHouseStrip(totals);
+}
+function renderSidebar(totals){
   const el = document.getElementById('summaryList');
   if(!el) return;
-  const totals = computeTotals();
   const ranked = HOUSES.map(h=>({house:h, pts:totals[h]})).sort((a,b)=>b.pts-a.pts);
   el.innerHTML = ranked.map((r,i)=>`
     <div class="summary-row">
@@ -387,6 +407,68 @@ function renderSummary(){
       <span class="summary-house">${r.house}</span>
       <span class="summary-pts">${r.pts}</span>
     </div>`).join('');
+}
+
+// ---- Header: year total per house (earlier events + indoor games), auto-sorted ----
+const stripShown = {};   // last displayed total per house (for count-up)
+function renderHouseStrip(indoorTotals){
+  const strip = document.getElementById('houseStrip');
+  if(!strip) return;
+
+  // build the 4 boxes once; afterwards we only update + reorder them
+  if(!strip.children.length){
+    HOUSES.forEach(h=>{
+      const d = document.createElement('div');
+      d.className = 'hs-item';
+      d.dataset.house = h;
+      d.style.background = HOUSE_COLOR[h];
+      d.style.color = '#fff';
+      d.innerHTML = `<div class="hs-top"><span class="hs-rank"></span><span>${h.toUpperCase()}</span></div>
+                     <div class="hs-total">0</div><div class="hs-sub"></div>`;
+      strip.appendChild(d);
+    });
+  }
+
+  const rows = HOUSES.map(h=>({
+    house:h, indoor:indoorTotals[h]||0, total:(BASE_MARKS[h]||0)+(indoorTotals[h]||0)
+  })).sort((a,b)=> b.total-a.total || HOUSES.indexOf(a.house)-HOUSES.indexOf(b.house));
+
+  // FIRST: remember where each box is now
+  const before = {};
+  [...strip.children].forEach(c=>{ before[c.dataset.house] = c.getBoundingClientRect(); });
+
+  // update content + order
+  rows.forEach((r,i)=>{
+    const c = strip.querySelector(`[data-house="${r.house}"]`);
+    c.style.order = i;
+    c.classList.toggle('leader', i===0);
+    c.querySelector('.hs-rank').textContent = i+1;
+    c.querySelector('.hs-sub').textContent = `Indoor Games +${r.indoor}`;
+    countUp(c.querySelector('.hs-total'), r.house, r.total);
+  });
+
+  // LAST + INVERT + PLAY: slide boxes from old position to new position
+  [...strip.children].forEach(c=>{
+    const b = before[c.dataset.house], a = c.getBoundingClientRect();
+    const dx = b.left - a.left;
+    if(!dx) return;
+    c.style.transition = 'none';
+    c.style.transform = `translateX(${dx}px)`;
+    void c.offsetWidth;
+    c.style.transition = 'transform .7s cubic-bezier(.2,.8,.2,1)';
+    c.style.transform = '';
+  });
+}
+function countUp(el, house, target){
+  const from = stripShown[house];
+  stripShown[house] = target;
+  if(from===undefined || from===target){ el.textContent = target; return; }
+  const t0 = performance.now(), dur = 700;
+  (function step(now){
+    const k = Math.min(1,(now-t0)/dur);
+    el.textContent = Math.round(from + (target-from)*k);
+    if(k<1) requestAnimationFrame(step);
+  })(t0);
 }
 
 // ---- Read-only bracket rendering (same look as the admin page's locked columns) ----
