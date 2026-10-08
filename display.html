@@ -179,6 +179,21 @@
   footer{text-align:center; color:var(--muted); font-size:11px; padding:10px; border-top:1px solid var(--line); flex-shrink:0;}
   ::-webkit-scrollbar{height:8px; width:8px;}
   ::-webkit-scrollbar-thumb{background:var(--line); border-radius:4px;}
+
+  /* ---- Fullscreen toggle ---- */
+  .fs-btn{
+    position:fixed; right:14px; bottom:44px; z-index:50; width:40px; height:40px; border-radius:10px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    background:rgba(20,28,40,.85); color:#fff; border:1px solid rgba(255,255,255,.25);
+    transition:opacity .4s, background .2s; opacity:.85;
+  }
+  .fs-btn:hover{background:rgba(255,208,0,.25); opacity:1;}
+  .fs-btn svg{width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round;}
+  .fs-btn .ico-exit{display:none;}
+  body.is-fs .fs-btn .ico-enter{display:none;}
+  body.is-fs .fs-btn .ico-exit{display:block;}
+  body.is-fs.idle .fs-btn{opacity:0; pointer-events:none;}
+  body.is-fs.idle{cursor:none;}
 </style>
 </head>
 <body>
@@ -208,6 +223,10 @@
     </div>
   </div>
 </main>
+<button class="fs-btn" id="fsBtn" type="button" title="Full screen (F)" aria-label="Toggle full screen">
+  <svg class="ico-enter" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+  <svg class="ico-exit" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>
+</button>
 <footer>ICBT Staff Indoor Games © 2026 ICBT. All Rights Reserved. · Updates Live ·</footer>
 
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
@@ -796,6 +815,43 @@ window.addEventListener('keydown', e=>{
   renderSummary();
   await goToSlide(0);
   scheduleAdvance();
+})();
+</script>
+
+<script>
+// ---- Full screen toggle (button, F key, or double-click anywhere) ----
+(function(){
+  const root = document.documentElement;
+  const isFs = ()=> document.fullscreenElement || document.webkitFullscreenElement;
+  function toggleFs(){
+    if(isFs()){
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    }else{
+      const req = root.requestFullscreen || root.webkitRequestFullscreen;
+      if(req) req.call(root).catch(()=>{});
+    }
+  }
+  document.getElementById('fsBtn').addEventListener('click', toggleFs);
+  document.addEventListener('keydown', e=>{
+    if((e.key==='f' || e.key==='F') && !e.ctrlKey && !e.metaKey && !e.altKey) toggleFs();
+  });
+  document.addEventListener('dblclick', toggleFs);
+
+  // in fullscreen: hide the button + cursor after 3s of no mouse movement
+  let idleTimer;
+  function wake(){
+    document.body.classList.remove('idle');
+    clearTimeout(idleTimer);
+    if(isFs()) idleTimer = setTimeout(()=>document.body.classList.add('idle'), 3000);
+  }
+  document.addEventListener('mousemove', wake);
+  function onFsChange(){
+    document.body.classList.toggle('is-fs', !!isFs());
+    wake();
+    setTimeout(()=>{ try{ fitToScreen(); }catch(e){} }, 150);   // re-fit layout to the new size
+  }
+  document.addEventListener('fullscreenchange', onFsChange);
+  document.addEventListener('webkitfullscreenchange', onFsChange);
 })();
 </script>
 </body>
